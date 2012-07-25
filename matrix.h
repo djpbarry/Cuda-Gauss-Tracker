@@ -13,8 +13,9 @@ typedef struct {
     char* elements; 
 } charMatrix;
 
-#define N_MAX 5
-#define MAX_DETECTIONS 1000
+#define FILENAME_LENGTH 10
+#define N_MAX 1
+#define MAX_DETECTIONS 4000
 #define FIT_RADIUS 3
 #define FIT_SIZE 7
 #define SEARCH_RADIUS 1
@@ -35,4 +36,3 @@ typedef struct {
 #define YE_ROW (XE_ROW + N_MAX)
 #define MAG_ROW (YE_ROW + N_MAX)
 #define TIF ".tif"
-#define PNG ".png"
