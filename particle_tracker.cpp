@@ -37,13 +37,13 @@ int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, 
 
 void testCentreOfMass(float *x, float *y, int index, Matrix image);
 
-float _spatialRes = 132.0f;
+float _spatialRes = 133.0f;
 float _sigmaEst, _2sig2;
-float _maxThresh = 5.0f;
+float _maxThresh = 2.0f;
 float _numAp = 1.4f;
-float _lambda = 650.0f;
-int _numFrames = 150;
-int _scalefactor = 1;
+float _lambda = 488.0f;
+int _numFrames = 299;
+int _scalefactor = 4;
 
 int main(int argc, char* argv[])
 {
@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
 	_2sig2 = 2.0f * _sigmaEst * _sigmaEst;
 
 	printf("Start...\n");
-	String folder = "C:\\Users\\barry05\\Desktop\\Tracking Test Sequences\\OpenCV Tests\\Test7\\";
+	String folder = "C:\\Users\\barry05\\Desktop\\CUDA Gauss Localiser Tests\\Test6\\";
 	printf("\nFolder: %s\n", folder);
 	
 	// Names of first files is folder
@@ -74,6 +74,7 @@ int main(int argc, char* argv[])
 	candidates.elements = (float*)malloc(sizeof(float) * candidates.size);
 
 	// Read one image at a time and find candidate particles in each
+	printf("\nFinding Maxima ... %d", 0);
 	while(!frame.empty()){
 		count = findParticles(frame, candidates, count, frames);
 		frames++;
@@ -84,11 +85,14 @@ int main(int argc, char* argv[])
 			noughts += 1.0f;
 		}
 		frame = imread(folder + filename, -1);
+		printf("\rFinding Maxima ... %d", frames);
 	}
 	int outcount = 0;
 	savefilename = "000.tif";
+	printf("\n\nGaussian Fitting\n-------------------------");
 	GaussFitter(candidates, count, _sigmaEst, _maxThresh);
 	clock_t totaltime = 0;
+	printf("\nWriting Output ... %d", 0);
 	for(int z=0; z<frames; z++){
 		if(z>0){
 			savefilename = strcat(toString(z),TIF);
@@ -99,16 +103,16 @@ int main(int argc, char* argv[])
 			}
 		}
 		Matrix cudaoutput;
-		cudaoutput.width = width;
+		cudaoutput.width = width*_scalefactor;
 		cudaoutput.stride=cudaoutput.width;
-		cudaoutput.height = height;
+		cudaoutput.height = height*_scalefactor;
 		cudaoutput.size = cudaoutput.width * cudaoutput.height;
 		cudaoutput.elements = (float*)malloc(sizeof(float) * cudaoutput.size);
-		for(int p=0; p<width*height; p++){
+		for(int p=0; p<cudaoutput.width*cudaoutput.height; p++){
 			cudaoutput.elements[p] = 0.0f;
 		}
 		Mat cudasaveframe(height*_scalefactor,width*_scalefactor,CV_32F);
-		Matrix testoutput;
+/*		Matrix testoutput;
 		testoutput.width = width*_scalefactor;
 		testoutput.stride=testoutput.width;
 		testoutput.height = height*_scalefactor;
@@ -117,7 +121,7 @@ int main(int argc, char* argv[])
 		for(int p=0; p<width*height*_scalefactor*_scalefactor; p++){
 			testoutput.elements[p] = 0.0f;
 		}
-		Mat testsaveframe(height*_scalefactor,width*_scalefactor,CV_32F);
+		Mat testsaveframe(height*_scalefactor,width*_scalefactor,CV_32F);*/
 		while(round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount<count){
 			int x = round(candidates.elements[outcount + candidates.stride * X_ROW]);
 			int y = round(candidates.elements[outcount + candidates.stride * Y_ROW]);
@@ -127,12 +131,14 @@ int main(int argc, char* argv[])
 			if(best>=0){
 				for(int i=0; i<=best; i++){
 					//printf("\nxe: %f ye: %f mag: %f\n",x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre,candidates.elements[outcount + candidates.stride * (MAG_ROW + i)]);
-					testDraw2DGaussian(cudaoutput, candidates.elements[outcount + candidates.stride * (MAG_ROW + i)],
+					if(candidates.elements[outcount + candidates.stride * (MAG_ROW + i)] > _maxThresh){
+						testDraw2DGaussian(cudaoutput, candidates.elements[outcount + candidates.stride * (MAG_ROW + i)],
 						x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
 						y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);
+					}
 				}
 			}
-			float *xe = (float*)malloc(sizeof(float) * N_MAX * N_MAX);
+			/*float *xe = (float*)malloc(sizeof(float) * N_MAX * N_MAX);
 			float *ye = (float*)malloc(sizeof(float) * N_MAX * N_MAX);
 			float *mag = (float*)malloc(sizeof(float) * N_MAX * N_MAX);
 			clock_t start = clock();
@@ -142,16 +148,19 @@ int main(int argc, char* argv[])
 				for(int i=0; i<=best; i++){
 					testDraw2DGaussian(testoutput, mag[best * N_MAX + i], x + xe[best * N_MAX + i] - xRegionCentre, y + ye[best * N_MAX + i] - yRegionCentre);
 				}
-			}
+			}*/
 			outcount++;
 		}
 		copyFromMatrix(cudasaveframe, cudaoutput);
+		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
+		printf("\rWriting Output ... %d", z);
 		imwrite(folder + "CudaOutput\\" + savefilename, cudasaveframe);
-		copyFromMatrix(testsaveframe, testoutput);
-		imwrite(folder + "TestOutput\\" + savefilename, testsaveframe);
+		/*copyFromMatrix(testsaveframe, testoutput);
+		imwrite(folder + "TestOutput\\" + savefilename, testsaveframe);*/
+		free(cudaoutput.elements);
 	}
 	char c;
-	printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
+	//printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
 	printf("\n\nPress Any Key...");
 	scanf_s("%c",&c);
 	return 0;
@@ -184,12 +193,14 @@ void copyToMatrix(Mat M, Matrix A){
 }
 
 void copyFromMatrix(Mat M, Matrix A){
+	float scale = 65535.0f / 255.0f;
 	for(int y=0; y< M.rows; y++){
 		int Moffset = y * M.step1();
 		int Aoffset = y * A.stride;
 		for(int x=0; x < M.cols; x++){
 			float a = A.elements[Aoffset + x];
-			((float*)M.data)[Moffset + x] = A.elements[Aoffset + x];
+			((float*)M.data)[Moffset + x] = scale * A.elements[Aoffset + x];
+			//if(((float*)M.data)[Moffset + x] > 0.0f) printf("Val: %f\n", ((float*)M.data)[Moffset + x]);
 		}
 	}
 	return;
@@ -326,20 +337,21 @@ int round(float number)
 }
 
 bool testDraw2DGaussian(Matrix image, float mag, float x01, float y01) {
-        int x, y;
-        float value;
+       // int x, y;
 		float x0 = x01 * _scalefactor;
 		float y0 = y01 * _scalefactor;
-		int drawRadius = FIT_RADIUS + 2;
-        for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {
-            for (y = (int) floor(y0 - drawRadius); y <= y0 + drawRadius; y++) {
+		//int drawRadius = FIT_RADIUS + 2;
+       // for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {
+          //  for (y = (int) floor(y0 - drawRadius); y <= y0 + drawRadius; y++) {
                 /* The current pixel value is added so as not to "overwrite" other
                 Gaussians in close proximity: */
-				if(x >= 0 && x < image.width && y >= 0 && y < image.height){
-					image.elements[x + y * image.stride] = image.elements[x + y * image.stride] + testMultiEvaluate(x0, y0, mag, x, y);
-				}
-            }
-        }
+				//if(x >= 0 && x < image.width && y >= 0 && y < image.height){
+					//image.elements[x + y * image.stride] = image.elements[x + y * image.stride] + testMultiEvaluate(x0, y0, mag, x, y);
+					int index = (int) floor(x0) + (int) floor(y0) * image.stride;
+					image.elements[index] = image.elements[index] + 1.0f;
+				//}
+        //    }
+   //     }
         return true;
     }
 
@@ -365,7 +377,7 @@ int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, 
 				}
 				if(residual > mag[n + noffset]){
 					mag[n + noffset] = residual;
-					xe[n + noffset] = i + index - FIT_RADIUS;
+					xe[n + noffset] = (float)(i + index - FIT_RADIUS);
 					ye[n + noffset] = j + 3.0f;
 				}
 			}
