@@ -4,7 +4,13 @@
 #include <highgui.h>
 #include <time.h>
 #include <matrix.h>
+#include <iterator>
+#include <vector>
+#include <boost/filesystem.hpp>
+#include <boost/lexical_cast.hpp>
 
+using namespace std;
+using namespace boost::filesystem;
 using namespace cv;
 
 int findParticles(Mat image, Matrix B, int count, int z);
@@ -37,13 +43,17 @@ int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, 
 
 void testCentreOfMass(float *x, float *y, int index, Matrix image);
 
-float _spatialRes = 133.0f;
+vector<path> getFiles(char* folder);
+
+float _spatialRes = 83.0f;
 float _sigmaEst, _2sig2;
-float _maxThresh = 2.0f;
+float _maxThresh = 7.5f;
 float _numAp = 1.4f;
-float _lambda = 488.0f;
-int _numFrames = 299;
-int _scalefactor = 4;
+float _lambda = 650.0f;
+int _numFrames = 195;
+int _scalefactor = 1;
+
+  typedef vector<path> vec; 
 
 int main(int argc, char* argv[])
 {
@@ -52,18 +62,13 @@ int main(int argc, char* argv[])
 	_2sig2 = 2.0f * _sigmaEst * _sigmaEst;
 
 	printf("Start...\n");
-	String folder = "C:\\Users\\barry05\\Desktop\\CUDA Gauss Localiser Tests\\Test6\\";
+	char* folder = "C:/Users/barry05/Desktop/CUDA Gauss Localiser Tests/Test8";
 	printf("\nFolder: %s\n", folder);
 	
-	// Names of first files is folder
-	String filename = "000.tif", savefilename = "000.tif";
-	Mat frame = imread(folder + filename, -1);
-	int width = frame.cols;
-	int height = frame.rows;
-	int frames = 0;
-	int count = 0;
+	vector<path> v = getFiles(folder);
+	vector<path>::iterator v_iter;
 
-	// Storage for regions containing candidate particles
+		// Storage for regions containing candidate particles
 	Matrix candidates;
 
 	// Width of each region set to one quarter warp (assuming FIT_RADIUS = 3)
@@ -75,33 +80,27 @@ int main(int argc, char* argv[])
 
 	// Read one image at a time and find candidate particles in each
 	printf("\nFinding Maxima ... %d", 0);
-	while(!frame.empty()){
-		count = findParticles(frame, candidates, count, frames);
-		frames++;
-		filename = strcat(toString(frames),TIF);
-		float noughts = log10((float)frames);
-		while(noughts < 2){
-			filename = '0' + filename;
-			noughts += 1.0f;
+	int frames = 0;
+	int count = 0;
+	Mat frame;
+	for(v_iter = v.begin(); v_iter != v.end(); v_iter++){
+		string ext_s = ((*v_iter).extension()).string();
+		const char* ext_c = ext_s.c_str();
+		if((strcmp(ext_c, TIF) == 0) || (strcmp(ext_c, TIFF) == 0)) {
+			printf("\rFinding Maxima ... %d", frames);
+			frame = imread((*v_iter).string(), -1);
+			count = findParticles(frame, candidates, count, frames);
+			frames++;
 		}
-		frame = imread(folder + filename, -1);
-		printf("\rFinding Maxima ... %d", frames);
 	}
+	int width = frame.cols;
+	int height = frame.rows;
 	int outcount = 0;
-	savefilename = "000.tif";
 	printf("\n\nGaussian Fitting\n-------------------------");
 	GaussFitter(candidates, count, _sigmaEst, _maxThresh);
 	clock_t totaltime = 0;
 	printf("\nWriting Output ... %d", 0);
 	for(int z=0; z<frames; z++){
-		if(z>0){
-			savefilename = strcat(toString(z),TIF);
-			float noughts = log10((float)z);
-			while(noughts < 2){
-				savefilename = '0' + savefilename;
-				noughts += 1.0f;
-			}
-		}
 		Matrix cudaoutput;
 		cudaoutput.width = width*_scalefactor;
 		cudaoutput.stride=cudaoutput.width;
@@ -130,12 +129,11 @@ int main(int argc, char* argv[])
 			int yRegionCentre = FIT_RADIUS+HEADER;
 			if(best>=0){
 				for(int i=0; i<=best; i++){
-					//printf("\nxe: %f ye: %f mag: %f\n",x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre,candidates.elements[outcount + candidates.stride * (MAG_ROW + i)]);
-					if(candidates.elements[outcount + candidates.stride * (MAG_ROW + i)] > _maxThresh){
+					//if(candidates.elements[outcount + candidates.stride * (MAG_ROW + i)] > _maxThresh){
 						testDraw2DGaussian(cudaoutput, candidates.elements[outcount + candidates.stride * (MAG_ROW + i)],
 						x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
 						y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);
-					}
+					//}
 				}
 			}
 			/*float *xe = (float*)malloc(sizeof(float) * N_MAX * N_MAX);
@@ -154,7 +152,11 @@ int main(int argc, char* argv[])
 		copyFromMatrix(cudasaveframe, cudaoutput);
 		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
 		printf("\rWriting Output ... %d", z);
-		imwrite(folder + "CudaOutput\\" + savefilename, cudasaveframe);
+		string savefilename(folder);
+		savefilename.append("/CudaOutput/");
+		savefilename.append(boost::lexical_cast<string>(z));
+		savefilename.append(PNG);
+		imwrite(savefilename, cudasaveframe);
 		/*copyFromMatrix(testsaveframe, testoutput);
 		imwrite(folder + "TestOutput\\" + savefilename, testsaveframe);*/
 		free(cudaoutput.elements);
@@ -337,21 +339,21 @@ int round(float number)
 }
 
 bool testDraw2DGaussian(Matrix image, float mag, float x01, float y01) {
-       // int x, y;
+        int x, y;
 		float x0 = x01 * _scalefactor;
 		float y0 = y01 * _scalefactor;
-		//int drawRadius = FIT_RADIUS + 2;
-       // for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {
-          //  for (y = (int) floor(y0 - drawRadius); y <= y0 + drawRadius; y++) {
+		int drawRadius = FIT_RADIUS + 2;
+        for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {
+            for (y = (int) floor(y0 - drawRadius); y <= y0 + drawRadius; y++) {
                 /* The current pixel value is added so as not to "overwrite" other
                 Gaussians in close proximity: */
-				//if(x >= 0 && x < image.width && y >= 0 && y < image.height){
-					//image.elements[x + y * image.stride] = image.elements[x + y * image.stride] + testMultiEvaluate(x0, y0, mag, x, y);
-					int index = (int) floor(x0) + (int) floor(y0) * image.stride;
-					image.elements[index] = image.elements[index] + 1.0f;
-				//}
-        //    }
-   //     }
+				if(x >= 0 && x < image.width && y >= 0 && y < image.height){
+					int index = x + y * image.stride;
+					image.elements[index] = image.elements[index] + testMultiEvaluate(x0, y0, mag, x, y);
+					//image.elements[index] = image.elements[index] + 1.0f;
+				}
+            }
+        }
         return true;
     }
 
@@ -409,4 +411,35 @@ void testCentreOfMass(float *x, float *y, int index, Matrix image){
 	}
 	*x = xsum / sum;
 	*y = ysum / sum;
+}
+
+vector<path> getFiles(char* folder)
+{
+  path p (folder);   // p reads clearer than argv[1] in the following code            // store paths,
+  vec v;                                // so we can sort them later
+
+  try
+  {
+    if (exists(p))    // does p actually exist?
+    {
+      if (is_directory(p))      // is p a directory?
+      {
+		printf("\nValid directory.\n");
+        copy(directory_iterator(p), directory_iterator(), back_inserter(v));
+        sort(v.begin(), v.end());             // sort, since directory iteration
+                                              // is not ordered on some file systems
+      }
+	  else
+		printf("\nInvalid directory.\n");
+    }
+    else
+      printf("\nDirectory does not exist.\n");
+  }
+
+  catch (const filesystem_error& ex)
+  {
+    cout << ex.what() << '\n';
+  }
+
+  return v;
 }

@@ -1,9 +1,13 @@
 #include <matrix.h>
-#include <cutil_inline.h>
+//#include <cutil_inline.h>
 #include <math.h>
-#include <device_functions.h>
+#include <stdio.h>
+//#include <device_functions.h>
+#include "cuda.h"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
 
-#define NUM_REPS 10
+#define NUM_REPS 1
 
 extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThresh);
 
@@ -77,9 +81,13 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThre
 	cudaEventElapsedTime(&copyToDevice, start, stop);
 	checkCudaError();
 
+	printf("\n\nCopy To Device: %.0f\n", copyToDevice);
+
 	int numblocks = maxcount / BLOCK_SIZE_X;
 	if (numblocks * BLOCK_SIZE_X < maxcount) numblocks++;
 	if (numblocks % 2 != 0) numblocks++;
+
+	printf("\n\nMax Count: %d\nNumber of Blocks: %d\n", maxcount, numblocks);
 
     dim3 dimBlock(BLOCK_SIZE_X, BLOCK_SIZE_Y);
     dim3 dimGrid(numblocks, 1);
@@ -127,7 +135,8 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThre
 	cudaDeviceReset();
 	checkCudaError();
 
-	printf("\n\nCopy To Device: %.0f Copy From Device: %.0f\n", copyToDevice, copyFromDevice);
+	printf("\n\nCopy From Device: %.0f\n", copyFromDevice);
+
 	printf("\nInner Time: %.0f Outer Time: %.0f\n", innerTime / NUM_REPS, outerTime / NUM_REPS);
 
 	return (outerTime + innerTime) / (NUM_REPS * 2.0f);
