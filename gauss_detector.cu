@@ -87,7 +87,7 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThre
 	if (numblocks * BLOCK_SIZE_X < maxcount) numblocks++;
 	if (numblocks % 2 != 0) numblocks++;
 
-	printf("\n\nMax Count: %d\nNumber of Blocks: %d\n", maxcount, numblocks);
+	printf("\nMax Count: %d\n\nNumber of Blocks: %d\n", maxcount, numblocks);
 
     dim3 dimBlock(BLOCK_SIZE_X, BLOCK_SIZE_Y);
     dim3 dimGrid(numblocks, 1);
@@ -135,7 +135,7 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThre
 	cudaDeviceReset();
 	checkCudaError();
 
-	printf("\n\nCopy From Device: %.0f\n", copyFromDevice);
+	printf("\nCopy From Device: %.0f\n", copyFromDevice);
 
 	printf("\nInner Time: %.0f Outer Time: %.0f\n", innerTime / NUM_REPS, outerTime / NUM_REPS);
 

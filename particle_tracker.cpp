@@ -45,34 +45,56 @@ void testCentreOfMass(float *x, float *y, int index, Matrix image);
 
 vector<path> getFiles(char* folder);
 
-float _spatialRes = 83.0f;
+float getInput(char* prompt, float default_val);
+
+void getTextInput(char* prompt, char* default_val);
+
+float _spatialRes = 132.0f;
 float _sigmaEst, _2sig2;
-float _maxThresh = 7.5f;
+float _maxThresh = 1.0f;
 float _numAp = 1.4f;
 float _lambda = 650.0f;
-int _numFrames = 195;
 int _scalefactor = 1;
+char* _ext = ".tif";
 
-  typedef vector<path> vec; 
+ typedef vector<path> vec; 
 
 int main(int argc, char* argv[])
 {
+	_spatialRes = getInput("spatial resolution in nm", _spatialRes);
+	_maxThresh = getInput("maximum intensity threshold", _maxThresh);
+	_lambda = getInput("wavelength of emitted light in nm", _lambda);
+	_scalefactor = round(getInput("scaling factor for output", _scalefactor));
+	getTextInput("file extension", _ext);
+	printf("\nSpatial resolution = %.0f nm", _spatialRes);
+	printf("\nMaximum intensity threshold = %.0f", _maxThresh);
+	printf("\nWavelength of emitted light = %.0f nm", _lambda);
+	printf("\nOutput will be scaled by a factor of %d", _scalefactor);
+	printf("\nFiles of type %s will be analysed", _ext);
 	// Sigma estimate for Gaussian fitting
 	_sigmaEst = 0.305f * _lambda / (_numAp * _spatialRes);
 	_2sig2 = 2.0f * _sigmaEst * _sigmaEst;
 
-	printf("Start...\n");
+	printf("\n\nStart...\n");
 	char* folder = "C:/Users/barry05/Desktop/CUDA Gauss Localiser Tests/Test8";
 	printf("\nFolder: %s\n", folder);
 	
 	vector<path> v = getFiles(folder);
 	vector<path>::iterator v_iter;
 
-		// Storage for regions containing candidate particles
+	int frames = 0;
+	for(v_iter = v.begin(); v_iter != v.end(); v_iter++){
+		string ext_s = ((*v_iter).extension()).string();
+		if((strcmp(ext_s.c_str(), _ext) == 0)) {
+			frames++;
+		}
+	}
+
+	// Storage for regions containing candidate particles
 	Matrix candidates;
 
 	// Width of each region set to one quarter warp (assuming FIT_RADIUS = 3)
-	candidates.width = FIT_SIZE * MAX_DETECTIONS * _numFrames;
+	candidates.width = FIT_SIZE * MAX_DETECTIONS * frames;
 	candidates.stride = candidates.width;
 	candidates.height = FIT_SIZE + DATA_ROWS;
 	candidates.size = candidates.width * candidates.height;
@@ -80,13 +102,12 @@ int main(int argc, char* argv[])
 
 	// Read one image at a time and find candidate particles in each
 	printf("\nFinding Maxima ... %d", 0);
-	int frames = 0;
+	frames = 0;
 	int count = 0;
 	Mat frame;
 	for(v_iter = v.begin(); v_iter != v.end(); v_iter++){
 		string ext_s = ((*v_iter).extension()).string();
-		const char* ext_c = ext_s.c_str();
-		if((strcmp(ext_c, TIF) == 0) || (strcmp(ext_c, TIFF) == 0)) {
+		if((strcmp(ext_s.c_str(), _ext) == 0)) {
 			printf("\rFinding Maxima ... %d", frames);
 			frame = imread((*v_iter).string(), -1);
 			count = findParticles(frame, candidates, count, frames);
@@ -96,10 +117,10 @@ int main(int argc, char* argv[])
 	int width = frame.cols;
 	int height = frame.rows;
 	int outcount = 0;
-	printf("\n\nGaussian Fitting\n-------------------------");
+	printf("\n\n-------------------------\n\nGPU Gaussian Fitting");
 	GaussFitter(candidates, count, _sigmaEst, _maxThresh);
 	clock_t totaltime = 0;
-	printf("\nWriting Output ... %d", 0);
+	printf("\n-------------------------\n\nWriting Output ... %d", 0);
 	for(int z=0; z<frames; z++){
 		Matrix cudaoutput;
 		cudaoutput.width = width*_scalefactor;
@@ -163,7 +184,7 @@ int main(int argc, char* argv[])
 	}
 	char c;
 	//printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
-	printf("\n\nPress Any Key...");
+	printf("\n\nPress Any Key...\n");
 	scanf_s("%c",&c);
 	return 0;
 }
@@ -442,4 +463,31 @@ vector<path> getFiles(char* folder)
   }
 
   return v;
+}
+
+float getInput(char* prompt, float default_val){
+	char inputs[INPUT_LENGTH];
+	float result = default_val;
+	printf("Enter %s (non-numeric for default): ", prompt);
+	scanf("%s", inputs);
+	float temp;
+	if(sscanf_s(inputs, "%f", &temp) > 0){
+		result = temp;
+	}
+	return result;
+}
+
+void getTextInput(char* prompt, char* result){
+	char inputs[INPUT_LENGTH];
+	printf("Enter %s (non-numeric for default): ", prompt);
+	scanf("%s", inputs);
+	char temp[INPUT_LENGTH];
+	if(sscanf(inputs, "%s", temp) > 0){
+		if(temp[0] != '.'){
+			printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", temp, result);
+		} else {
+			strcpy(result, temp);
+		}
+	}
+	return;
 }

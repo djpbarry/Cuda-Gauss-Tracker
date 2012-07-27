@@ -35,6 +35,5 @@ typedef struct {
 #define XE_ROW (BEST_ROW + 1)
 #define YE_ROW (XE_ROW + N_MAX)
 #define MAG_ROW (YE_ROW + N_MAX)
-#define TIF ".tif"
-#define TIFF ".tiff"
 #define PNG ".png"
+#define INPUT_LENGTH 10
