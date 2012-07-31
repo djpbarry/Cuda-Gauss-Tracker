@@ -5,13 +5,11 @@
 #include <time.h>
 #include <matrix.h>
 #include <defs.h>
+#include <utils.h>
 #include <iterator>
 #include <vector>
-#include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 
-using namespace std;
-using namespace boost::filesystem;
 using namespace cv;
 
 int findParticles(Mat image, Matrix B, int count, int z);
@@ -21,10 +19,6 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThre
 void copyToMatrix(Mat, Matrix);
 
 void copyFromMatrix(Mat, Matrix);
-
-char* toString(int);
-
-int round(float);
 
 int testMaxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int z);
 
@@ -44,12 +38,6 @@ int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, 
 
 void testCentreOfMass(float *x, float *y, int index, Matrix image);
 
-vector<path> getFiles(char* folder);
-
-float getInput(char* prompt, float default_val);
-
-void getTextInput(char* prompt, char* default_val);
-
 float _spatialRes = 132.0f;
 float _sigmaEst, _2sig2;
 float _maxThresh = 1.0f;
@@ -57,8 +45,6 @@ float _numAp = 1.4f;
 float _lambda = 650.0f;
 int _scalefactor = 1;
 char* _ext = ".tif";
-
- typedef vector<path> vec; 
 
 int main(int argc, char* argv[])
 {
@@ -81,15 +67,8 @@ int main(int argc, char* argv[])
 	printf("\nFolder: %s\n", folder);
 	
 	vector<path> v = getFiles(folder);
+	int frames = countFiles(v, _ext);
 	vector<path>::iterator v_iter;
-
-	int frames = 0;
-	for(v_iter = v.begin(); v_iter != v.end(); v_iter++){
-		string ext_s = ((*v_iter).extension()).string();
-		if((strcmp(ext_s.c_str(), _ext) == 0)) {
-			frames++;
-		}
-	}
 
 	// Storage for regions containing candidate particles
 	Matrix candidates;
@@ -230,18 +209,6 @@ void copyFromMatrix(Mat M, Matrix A){
 	return;
 }
 
-char* toString(int i){
-	int l = (int)floor(log10((float)i));
-	l++;
-	char *out = (char*) malloc (sizeof(char) * (l + 1));
-	for(int j=l-1; j>=0; j--){
-		out[j] = (char)(i % 10 + 48);
-		i /= 10;
-	}
-	out[l] = '\0';
-	return out;
-}
-
 float testEvaluate(float x0, float y0, float max, int x, int y, float sig2) {
 		return max * expf(-((x - x0)*(x - x0) + (y - y0)*(y - y0)) / (2.0f * sig2));
     }
@@ -355,11 +322,6 @@ float testMultiEvaluate(float x0, float y0, float mag, int x, int y) {
 		return mag * exp(-((x - x0)*(x - x0) + (y - y0)*(y - y0)) / (_2sig2));
     }
 
-int round(float number)
-{
-    return (number >= 0) ? (int)(number + 0.5) : (int)(number - 0.5);
-}
-
 bool testDraw2DGaussian(Matrix image, float mag, float x01, float y01) {
         int x, y;
 		float x0 = x01 * _scalefactor;
@@ -433,62 +395,4 @@ void testCentreOfMass(float *x, float *y, int index, Matrix image){
 	}
 	*x = xsum / sum;
 	*y = ysum / sum;
-}
-
-vector<path> getFiles(char* folder)
-{
-  path p (folder);   // p reads clearer than argv[1] in the following code            // store paths,
-  vec v;                                // so we can sort them later
-
-  try
-  {
-    if (exists(p))    // does p actually exist?
-    {
-      if (is_directory(p))      // is p a directory?
-      {
-		printf("\nValid directory.\n");
-        copy(directory_iterator(p), directory_iterator(), back_inserter(v));
-        sort(v.begin(), v.end());             // sort, since directory iteration
-                                              // is not ordered on some file systems
-      }
-	  else
-		printf("\nInvalid directory.\n");
-    }
-    else
-      printf("\nDirectory does not exist.\n");
-  }
-
-  catch (const filesystem_error& ex)
-  {
-    cout << ex.what() << '\n';
-  }
-
-  return v;
-}
-
-float getInput(char* prompt, float default_val){
-	char inputs[INPUT_LENGTH];
-	float result = default_val;
-	printf("Enter %s (non-numeric for default): ", prompt);
-	scanf_s("%9s", inputs, INPUT_LENGTH);
-	float temp;
-	if(sscanf_s(inputs, "%f", &temp) > 0){
-		result = temp;
-	}
-	return result;
-}
-
-void getTextInput(char* prompt, char* result){
-	char inputs[INPUT_LENGTH];
-	printf("Enter %s (non-numeric for default): ", prompt);
-	scanf_s("%9s", inputs, INPUT_LENGTH);
-	char temp[INPUT_LENGTH];
-	if(sscanf_s(inputs, "%9s", temp, INPUT_LENGTH) > 0){
-		if(temp[0] != '.'){
-			printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", temp, result);
-		} else {
-			strcpy_s(result, INPUT_LENGTH * sizeof(char), temp);
-		}
-	}
-	return;
 }
