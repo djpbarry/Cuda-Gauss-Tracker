@@ -183,10 +183,10 @@ int main(int argc, char* argv[])
 		imwrite(folder + "TestOutput\\" + savefilename, testsaveframe);*/
 		free(cudaoutput.elements);
 	}
-	char c;
 	//printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
-	printf("\n\nPress Any Key...\n");
-	scanf_s("%c",&c);
+	printf("\n\nPress Any Key...");
+	getchar();
+	getchar();
 	return 0;
 }
 
@@ -470,7 +470,7 @@ float getInput(char* prompt, float default_val){
 	char inputs[INPUT_LENGTH];
 	float result = default_val;
 	printf("Enter %s (non-numeric for default): ", prompt);
-	scanf("%s", inputs);
+	scanf_s("%9s", inputs, INPUT_LENGTH);
 	float temp;
 	if(sscanf_s(inputs, "%f", &temp) > 0){
 		result = temp;
@@ -481,13 +481,13 @@ float getInput(char* prompt, float default_val){
 void getTextInput(char* prompt, char* result){
 	char inputs[INPUT_LENGTH];
 	printf("Enter %s (non-numeric for default): ", prompt);
-	scanf("%s", inputs);
+	scanf_s("%9s", inputs, INPUT_LENGTH);
 	char temp[INPUT_LENGTH];
-	if(sscanf(inputs, "%s", temp) > 0){
+	if(sscanf_s(inputs, "%9s", temp, INPUT_LENGTH) > 0){
 		if(temp[0] != '.'){
 			printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", temp, result);
 		} else {
-			strcpy(result, temp);
+			strcpy_s(result, INPUT_LENGTH * sizeof(char), temp);
 		}
 	}
 	return;
