@@ -4,6 +4,7 @@
 #include <highgui.h>
 #include <time.h>
 #include <matrix.h>
+#include <defs.h>
 #include <iterator>
 #include <vector>
 #include <boost/filesystem.hpp>
@@ -64,7 +65,7 @@ int main(int argc, char* argv[])
 	_spatialRes = getInput("spatial resolution in nm", _spatialRes);
 	_maxThresh = getInput("maximum intensity threshold", _maxThresh);
 	_lambda = getInput("wavelength of emitted light in nm", _lambda);
-	_scalefactor = round(getInput("scaling factor for output", _scalefactor));
+	_scalefactor = round(getInput("scaling factor for output", (float)_scalefactor));
 	getTextInput("file extension", _ext);
 	printf("\nSpatial resolution = %.0f nm", _spatialRes);
 	printf("\nMaximum intensity threshold = %.0f", _maxThresh);

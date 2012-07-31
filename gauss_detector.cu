@@ -1,8 +1,7 @@
 #include <matrix.h>
-//#include <cutil_inline.h>
+#include <defs.h>
 #include <math.h>
 #include <stdio.h>
-//#include <device_functions.h>
 #include "cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
