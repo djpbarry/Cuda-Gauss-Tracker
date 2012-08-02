@@ -1,5 +1,8 @@
+#ifndef DEFS
+#define DEFS
+
 #define FILENAME_LENGTH 10
-#define N_MAX 5
+#define N_MAX 1
 #define MAX_DETECTIONS 4000
 #define FIT_RADIUS 3
 #define FIT_SIZE 7
@@ -22,3 +25,5 @@
 #define MAG_ROW (YE_ROW + N_MAX)
 #define PNG ".png"
 #define INPUT_LENGTH 10
+
+#endif

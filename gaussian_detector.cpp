@@ -12,47 +12,39 @@
 
 using namespace cv;
 
+void runDetector();
 int findParticles(Mat image, Matrix B, int count, int z);
-
 extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThresh);
-
-void copyToMatrix(Mat, Matrix);
-
-void copyFromMatrix(Mat, Matrix);
-
 int testMaxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int z);
-
 float testEvaluate(float x0, float y0, float max, int x, int y, float sig2);
-
 float testGetRSquared(int x0, float srs, Matrix M);
-
 bool testDraw2DGaussian(Matrix image, float mag, float x0, float y0);
-
 void testDoMultiFit(Matrix M, int x0, int N, float *xe, float *ye, float *mag, float *r);
-
 float testSumMultiResiduals(int x0, float *xe, float *ye, float *mag, Matrix M, float xinc, float yinc, float minc, int index, int N);
-
 float testMultiEvaluate(float x0, float y0, float mag, int x, int y);
-
 int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag);
-
 void testCentreOfMass(float *x, float *y, int index, Matrix image);
 
 float _spatialRes = 132.0f;
 float _sigmaEst, _2sig2;
-float _maxThresh = 1.0f;
+float _maxThresh = 5.0f;
 float _numAp = 1.4f;
 float _lambda = 650.0f;
 int _scalefactor = 1;
 char* _ext = ".tif";
 
-int main(int argc, char* argv[])
+//int main(int argc, char* argv[]){
+//	runDetector();
+//	return 0;
+//}
+
+void runDetector()
 {
-	_spatialRes = getInput("spatial resolution in nm", _spatialRes);
-	_maxThresh = getInput("maximum intensity threshold", _maxThresh);
-	_lambda = getInput("wavelength of emitted light in nm", _lambda);
-	_scalefactor = round(getInput("scaling factor for output", (float)_scalefactor));
-	getTextInput("file extension", _ext);
+	_spatialRes = Utils::getInput("spatial resolution in nm", _spatialRes);
+	_maxThresh = Utils::getInput("maximum intensity threshold", _maxThresh);
+	_lambda = Utils::getInput("wavelength of emitted light in nm", _lambda);
+	_scalefactor = Utils::round(Utils::getInput("scaling factor for output", (float)_scalefactor));
+	Utils::getTextInput("file extension", _ext);
 	printf("\nSpatial resolution = %.0f nm", _spatialRes);
 	printf("\nMaximum intensity threshold = %.0f", _maxThresh);
 	printf("\nWavelength of emitted light = %.0f nm", _lambda);
@@ -62,12 +54,12 @@ int main(int argc, char* argv[])
 	_sigmaEst = 0.305f * _lambda / (_numAp * _spatialRes);
 	_2sig2 = 2.0f * _sigmaEst * _sigmaEst;
 
-	printf("\n\nStart...\n");
-	char* folder = "C:/Users/barry05/Desktop/CUDA Gauss Localiser Tests/Test8";
+	printf("\n\nStart Detector...\n");
+	char* folder = "C:/Users/barry05/Desktop/CUDA Gauss Localiser Tests/Test6";
 	printf("\nFolder: %s\n", folder);
 	
-	vector<path> v = getFiles(folder);
-	int frames = countFiles(v, _ext);
+	vector<path> v = Utils::getFiles(folder);
+	int frames = Utils::countFiles(v, _ext);
 	vector<path>::iterator v_iter;
 
 	// Storage for regions containing candidate particles
@@ -122,10 +114,10 @@ int main(int argc, char* argv[])
 			testoutput.elements[p] = 0.0f;
 		}
 		Mat testsaveframe(height*_scalefactor,width*_scalefactor,CV_32F);*/
-		while(round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount<count){
-			int x = round(candidates.elements[outcount + candidates.stride * X_ROW]);
-			int y = round(candidates.elements[outcount + candidates.stride * Y_ROW]);
-			int best = round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
+		while(Utils::round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount<count){
+			int x = Utils::round(candidates.elements[outcount + candidates.stride * X_ROW]);
+			int y = Utils::round(candidates.elements[outcount + candidates.stride * Y_ROW]);
+			int best = Utils::round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
 			int xRegionCentre = outcount*FIT_SIZE+FIT_RADIUS;
 			int yRegionCentre = FIT_RADIUS+HEADER;
 			if(best>=0){
@@ -150,7 +142,7 @@ int main(int argc, char* argv[])
 			}*/
 			outcount++;
 		}
-		copyFromMatrix(cudasaveframe, cudaoutput);
+		Utils::copyFromMatrix(cudasaveframe, cudaoutput, 0);
 		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
 		printf("\rWriting Output ... %d", z);
 		string savefilename(folder);
@@ -166,7 +158,7 @@ int main(int argc, char* argv[])
 	printf("\n\nPress Any Key...");
 	getchar();
 	getchar();
-	return 0;
+	return;
 }
 
 int findParticles(Mat image, Matrix B, int count, int frame) {
@@ -179,34 +171,8 @@ int findParticles(Mat image, Matrix B, int count, int frame) {
 	A.height = image.rows;
 	A.size = A.width * A.height;
 	A.elements = (float*)malloc(sizeof(float) * A.size);
-	copyToMatrix(temp, A);
+	Utils::copyToMatrix(temp, A, 0);
 	return testMaxFinder(A, B, _maxThresh, true, count, frame);
-}
-
-void copyToMatrix(Mat M, Matrix A){
-	for(int y=0; y< M.rows; y++){
-		int Moffset = y * M.step1();
-		int Aoffset = y * A.stride;
-		for(int x=0; x < M.cols; x++){
-			float a = ((float*)M.data)[Moffset + x];
-			A.elements[Aoffset + x] = ((float*)M.data)[Moffset + x];
-		}
-	}
-	return;
-}
-
-void copyFromMatrix(Mat M, Matrix A){
-	float scale = 65535.0f / 255.0f;
-	for(int y=0; y< M.rows; y++){
-		int Moffset = y * M.step1();
-		int Aoffset = y * A.stride;
-		for(int x=0; x < M.cols; x++){
-			float a = A.elements[Aoffset + x];
-			((float*)M.data)[Moffset + x] = scale * A.elements[Aoffset + x];
-			//if(((float*)M.data)[Moffset + x] > 0.0f) printf("Val: %f\n", ((float*)M.data)[Moffset + x]);
-		}
-	}
-	return;
 }
 
 float testEvaluate(float x0, float y0, float max, int x, int y, float sig2) {

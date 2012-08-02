@@ -1,18 +1,23 @@
+#ifndef UTILS
+#define UTILS
+
 #include <iterator>
 #include <vector>
 #include <boost/filesystem.hpp>
+#include <matrix.h>
+#include <cv.h>
+#include <highgui.h>
+#include <defs.h>
 
 using namespace std;
 using namespace boost::filesystem;
+using namespace cv;
 
 typedef vector<path> vec;
 
-int countFiles(vector<path> v, char* ext);
-vector<path> getFiles(char* folder);
-float getInput(char* prompt, float default_val);
-void getTextInput(char* prompt, char* result);
-
-int countFiles(vector<path> v, char* ext){
+class Utils{
+public:
+static int countFiles(vector<path> v, char* ext){
 	vector<path>::iterator v_iter;
 	int frames = 0;
 	for(v_iter = v.begin(); v_iter != v.end(); v_iter++){
@@ -24,7 +29,7 @@ int countFiles(vector<path> v, char* ext){
 	return frames;
 }
 
-vector<path> getFiles(char* folder)
+static vector<path> getFiles(char* folder)
 {
   path p (folder);   // p reads clearer than argv[1] in the following code            // store paths,
   vec v;                                // so we can sort them later
@@ -55,7 +60,7 @@ vector<path> getFiles(char* folder)
   return v;
 }
 
-float getInput(char* prompt, float default_val){
+static float getInput(char* prompt, float default_val){
 	char inputs[INPUT_LENGTH];
 	float result = default_val;
 	printf("Enter %s (non-numeric for default): ", prompt);
@@ -67,7 +72,7 @@ float getInput(char* prompt, float default_val){
 	return result;
 }
 
-void getTextInput(char* prompt, char* result){
+static void getTextInput(char* prompt, char* result){
 	char inputs[INPUT_LENGTH];
 	printf("Enter %s (non-numeric for default): ", prompt);
 	scanf_s("%9s", inputs, INPUT_LENGTH);
@@ -82,19 +87,52 @@ void getTextInput(char* prompt, char* result){
 	return;
 }
 
-int round(float number)
+static int round(float number)
 {
     return (number >= 0) ? (int)(number + 0.5) : (int)(number - 0.5);
 }
 
-char* toString(int i){
-	int l = (int)floor(log10((float)i));
-	l++;
-	char *out = (char*) malloc (sizeof(char) * (l + 1));
-	for(int j=l-1; j>=0; j--){
-		out[j] = (char)(i % 10 + 48);
-		i /= 10;
+//Copy elements from an OpenCV Mat structure into a Matrix. Necessary as CUDA and OpenCV inter-operability is poor.
+static void copyToMatrix(Mat M, Matrix A, int index){
+	int frameoffset = index * A.width * A.height;
+	for(int y=0; y< M.rows; y++){
+		int Moffset = y * M.step1();
+		int Aoffset = y * A.stride + frameoffset;
+		for(int x=0; x < M.cols; x++){
+			A.elements[Aoffset + x] = ((float*)M.data)[Moffset + x];
+		}
 	}
-	out[l] = '\0';
-	return out;
+	return;
 }
+
+//Copy elements from a Matrix into an OpenCV Mat structure. Necessary as CUDA and OpenCV inter-operability is poor.
+static void copyFromMatrix(Mat M, Matrix A, int index){
+	int frameoffset = index * A.width * A.height;
+	float scale = 65535.0f / 255.0f;
+	for(int y=0; y< M.rows; y++){
+		int Moffset = y * M.step1();
+		int Aoffset = y * A.stride + frameoffset;
+		for(int x=0; x < M.cols; x++){
+			((float*)M.data)[Moffset + x] = scale * A.elements[Aoffset + x];
+		}
+	}
+	return;
+}
+
+//Copies the width and height of the first image of extension ext found in the file list specified by v into dims.
+static void getDims(vector<path> v, const char* ext, int* dims){
+	vector<path>::iterator v_iter;
+	for(v_iter = v.begin(); v_iter != v.end(); v_iter++){
+		string ext_s = ((*v_iter).extension()).string();
+		if((strcmp(ext_s.c_str(), ext) == 0)) {
+			Mat frame = imread((*v_iter).string(), -1);
+			dims[0] = frame.cols;
+			dims[1] = frame.rows;
+			return;
+		}
+	}
+	return;
+}
+};
+
+#endif
