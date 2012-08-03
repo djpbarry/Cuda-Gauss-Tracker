@@ -3,7 +3,7 @@
 
 #define FILENAME_LENGTH 10
 #define N_MAX 1
-#define MAX_DETECTIONS 4000
+#define MAX_DETECTIONS 5400
 #define FIT_RADIUS 3
 #define FIT_SIZE 7
 #define SEARCH_RADIUS 1
@@ -25,5 +25,6 @@
 #define MAG_ROW (YE_ROW + N_MAX)
 #define PNG ".png"
 #define INPUT_LENGTH 10
+#define DIM_OF_STATE 7
 
 #endif

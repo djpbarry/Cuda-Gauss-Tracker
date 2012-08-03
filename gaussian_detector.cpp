@@ -15,7 +15,7 @@ using namespace cv;
 void runDetector();
 int findParticles(Mat image, Matrix B, int count, int z);
 extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThresh);
-int testMaxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int z);
+int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
 float testEvaluate(float x0, float y0, float max, int x, int y, float sig2);
 float testGetRSquared(int x0, float srs, Matrix M);
 bool testDraw2DGaussian(Matrix image, float mag, float x0, float y0);
@@ -172,7 +172,7 @@ int findParticles(Mat image, Matrix B, int count, int frame) {
 	A.size = A.width * A.height;
 	A.elements = (float*)malloc(sizeof(float) * A.size);
 	Utils::copyToMatrix(temp, A, 0);
-	return testMaxFinder(A, B, _maxThresh, true, count, frame);
+	return maxFinder(A, B, _maxThresh, true, count, 0, frame);
 }
 
 float testEvaluate(float x0, float y0, float max, int x, int y, float sig2) {
@@ -199,20 +199,23 @@ float testGetRSquared(int x0, float srs, Matrix M) {
         return 1.0f - srs / sumMeanDiffSqr;
     }
 
-int testMaxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int z) 
+//Searches for local maxima in A, greater in magnitude than maxThresh, and copies the local neighbourhood
+//surrounding the maximum into B. Returns the total number of detected maxima in A.
+int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z) 
 { 
 	float min, max;
 	int i, j;
-	int blocksize = FIT_SIZE;
+	int koffset = k * A.width * A.height;
 	for(int y=FIT_RADIUS; y<A.height - FIT_RADIUS; y++){
 		for(int x=FIT_RADIUS; x<A.width - FIT_RADIUS; x++){
-			for (min = 255.0, max = 0.0, i = x - FIT_RADIUS; i <= x + FIT_RADIUS; i++) {
-				for (j = y - FIT_RADIUS; j <= y + FIT_RADIUS; j++){
-					if ((A.elements[i + j * A.stride] > max) && !((x == i) && (y == j))) {
-						max = A.elements[i + j * A.stride];
+			for (min = 255.0, max = 0.0, j = y - FIT_RADIUS; j <= y + FIT_RADIUS; j++) {
+				int offset = koffset + j * A.stride;
+				for (i = x - FIT_RADIUS; i <= x + FIT_RADIUS; i++){
+					if ((A.elements[i + offset] > max) && !((x == i) && (y == j))) {
+						max = A.elements[i + offset];
 					}
-					if ((A.elements[i + j * A.stride] < min) && !((x == i) && (y == j))) {
-						min = A.elements[i + j * A.stride];
+					if ((A.elements[i + offset] < min) && !((x == i) && (y == j))) {
+						min = A.elements[i + offset];
 					}
 				}
 			}
@@ -224,7 +227,7 @@ int testMaxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, 
 				diff = thispix;
 			}
 			if ((thispix >= max) && (diff > maxThresh)) {
-				int bxoffset = blocksize * count;
+				int bxoffset = FIT_SIZE * count;
 				for(int m=y-FIT_RADIUS; m <= y+FIT_RADIUS; m++){
 					int aoffset = m * A.stride;
 					int boffset = (m - y + FIT_RADIUS+3) * B.stride;
