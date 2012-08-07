@@ -1,5 +1,5 @@
-#ifndef DEFS
-#define DEFS
+#ifndef _DEFS_
+#define _DEFS_
 
 #define FILENAME_LENGTH 10
 #define N_MAX 1

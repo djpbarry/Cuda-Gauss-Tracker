@@ -1,5 +1,5 @@
-#ifndef MATRIX
-#define MATRIX
+#ifndef _MATRIX_
+#define _MATRIX_
 
 typedef struct { 
     int width; 

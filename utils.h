@@ -1,5 +1,5 @@
-#ifndef UTILS
-#define UTILS
+#ifndef _UTILS_
+#define _UTILS_
 
 #include <iterator>
 #include <vector>
