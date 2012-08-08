@@ -25,12 +25,12 @@ float testMultiEvaluate(float x0, float y0, float mag, int x, int y);
 int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag);
 void testCentreOfMass(float *x, float *y, int index, Matrix image);
 
-float _spatialRes = 132.0f;
+float _spatialRes = 42.0f;
 float _sigmaEst, _2sig2;
 float _maxThresh = 5.0f;
 float _numAp = 1.4f;
 float _lambda = 650.0f;
-int _scalefactor = 10;
+int _scalefactor = 1;
 char* _ext = ".tif";
 
 //int main(int argc, char* argv[]){

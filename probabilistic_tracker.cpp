@@ -85,7 +85,7 @@ int main(int argc, char* argv[]){
 			int y = (int)boost::math::round<float>(_mParticles[particleIndex + 1] * _scalefactor);
 			if(x > 0 && x < output.width && y > 0 && y < output.height){
 				int index = x + y * output.stride;
-				output.elements[index] += 100.0f;
+				//output.elements[index] += 255.0f * _mParticles[particleIndex + DIM_OF_STATE];
 			}
 		}
 	}
@@ -217,7 +217,7 @@ void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFra
 
         estimateStateVectors(_mStateVectors, _mParticles);
 
-        resample(_mParticles);
+        //resample(_mParticles);
     }
 
     //restore the sigma vector
@@ -280,9 +280,8 @@ void updateParticleWeights(Matrix aObservationStack, int aFrameIndex){
 		for (int vI = 0; vI < _mNbParticles; vI++) {
             vLogLikelihoods[vI] -= vMaxLogLikelihood;
 			int particleWeightIndex = stateVectorIndex + vI * (DIM_OF_STATE + 1) + DIM_OF_STATE;
-            _mParticles[particleWeightIndex] = _mParticles[particleWeightIndex] * exp(vLogLikelihoods[vI]);
+            _mParticles[particleWeightIndex] = _mParticles[particleWeightIndex] * expf(vLogLikelihoods[vI]);
             vSumOfWeights += _mParticles[particleWeightIndex];
-            vI++;
         }
         //
         // Iterate again and normalize the weights
@@ -302,7 +301,27 @@ void updateParticleWeights(Matrix aObservationStack, int aFrameIndex){
 	return;
 }
 
+//Estimates all state vectors from the particles and their weights
 void estimateStateVectors(float* aStateVectors, float* aParticles){
+	printf("\nEstimating Vectors ... %d\%", 0);
+	for(int i=0; i< _currentLength; i++){
+		printf("\rEstimating Vectors ... %d\%", (i * 100)/_currentLength);
+		int stateVectorIndex = i * DIM_OF_STATE;
+		int stateVectorParticleIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
+        /*
+            * Set the old state to 0
+            */
+        for (int vI = 0; vI < DIM_OF_STATE; vI++) {
+            aStateVectors[stateVectorIndex + vI] = 0.0f;
+        }
+
+        for (int pI = 0; pI < _mNbParticles; pI++) {
+			int particleIndex = stateVectorParticleIndex + pI * (DIM_OF_STATE + 1);
+            for (int vDim = 0; vDim < DIM_OF_STATE; vDim++) {
+                aStateVectors[stateVectorIndex + vDim] += aParticles[particleIndex + DIM_OF_STATE] * aParticles[particleIndex + vDim];
+            }
+        }
+    }
 	return;
 }
 
@@ -376,7 +395,7 @@ void generateIdealImage(float* particles, int offset, float* vIdealImage) {
 
 void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, int width, int height) {
     float vVarianceXYinPx = _mSigmaPSFxy * _mSigmaPSFxy / (_spatialRes * _spatialRes);
-    float vMaxDistancexy = (3.0f * _mSigmaPSFxy / _spatialRes);
+    float vMaxDistancexy = (5.0f * _mSigmaPSFxy / _spatialRes);
 
     int vXStart, vXEnd, vYStart, vYEnd;//defines a bounding box around the tip
     if (x + .5f - (vMaxDistancexy + .5f) < 0) {
