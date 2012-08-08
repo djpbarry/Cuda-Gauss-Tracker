@@ -106,9 +106,8 @@ static void copyToMatrix(Mat M, Matrix A, int index){
 }
 
 //Copy elements from a Matrix into an OpenCV Mat structure. Necessary as CUDA and OpenCV inter-operability is poor.
-static void copyFromMatrix(Mat M, Matrix A, int index){
+static void copyFromMatrix(Mat M, Matrix A, int index, float scale){
 	int frameoffset = index * A.width * A.height;
-	float scale = 65535.0f / 255.0f;
 	for(int y=0; y< M.rows; y++){
 		int Moffset = y * M.step1();
 		int Aoffset = y * A.stride + frameoffset;

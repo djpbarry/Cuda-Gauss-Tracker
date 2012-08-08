@@ -30,7 +30,7 @@ float _sigmaEst, _2sig2;
 float _maxThresh = 5.0f;
 float _numAp = 1.4f;
 float _lambda = 650.0f;
-int _scalefactor = 1;
+int _scalefactor = 10;
 char* _ext = ".tif";
 
 //int main(int argc, char* argv[]){
@@ -142,7 +142,7 @@ void runDetector()
 			}*/
 			outcount++;
 		}
-		Utils::copyFromMatrix(cudasaveframe, cudaoutput, 0);
+		Utils::copyFromMatrix(cudasaveframe, cudaoutput, 0, 65535.0f / 255.0f);
 		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
 		printf("\rWriting Output ... %d", z);
 		string savefilename(folder);

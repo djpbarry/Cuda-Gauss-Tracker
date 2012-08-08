@@ -27,7 +27,7 @@ void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameInd
 void generateIdealImage(float* particles, int offset, float* vIdealImage);
 void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameIndex, float* vLogLikelihoods, float* mParticles, int offset);
 void addBackgroundToImage(float* aImage, float aBackground);
-void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity);
+void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, int width, int height);
 float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage, bool* aBitmap);
 void copyStateVector(float* dest, float* source, int index);
 void copyParticle(float* dest, float* source, int index);
@@ -35,6 +35,7 @@ void updateStateVector(float* vector, int index);
 extern int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
 
 extern float _spatialRes;
+extern int _scalefactor;
 int _mHeight;
 int _mWidth;
 int _mNFrames;
@@ -53,20 +54,52 @@ float _mBackground = 1.0f;
 float _mSigmaOfDynamics[] = {20.0f, 20.0f, 20.0f, 1.0f};
 bool _mDoPrecisionCorrection = true;
 int _currentLength;
-int _mNbParticles = 10;
+int _mNbParticles = 1500;
 normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 Matrix _mOriginalImage;
+char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim1";
 
 int main(int argc, char* argv[]){
 	initTracker(".tif");
 	runTracker();
+
+	Matrix output;
+	output.width = _mWidth*_scalefactor;
+	output.stride=output.width;
+	output.height = _mHeight*_scalefactor;
+	output.size = output.width * output.height;
+	output.elements = (float*)malloc(sizeof(float) * output.size);
+	for(int p=0; p<output.width*output.height; p++){
+		output.elements[p] = 0.0f;
+	}
+	Mat cudasaveframe(_mHeight*_scalefactor, _mWidth*_scalefactor,CV_32F);
+	_spatialRes /= _scalefactor;
+	for(int i=0; i<_currentLength; i++){
+		int stateVectorIndex = i * DIM_OF_STATE;
+		addFeaturePointToImage(output.elements, _mStateVectors[stateVectorIndex] * _scalefactor, _mStateVectors[stateVectorIndex + 1] * _scalefactor, _mStateVectors[stateVectorIndex + 6], output.width, output.height);
+		for(int j=0; j<_mNbParticles; j++){
+			int particleIndex = (i * _mNbParticles + j) * (DIM_OF_STATE + 1);
+			int x = (int)boost::math::round<float>(_mParticles[particleIndex] * _scalefactor);
+			int y = (int)boost::math::round<float>(_mParticles[particleIndex + 1] * _scalefactor);
+			if(x > 0 && x < output.width && y > 0 && y < output.height){
+				int index = x + y * output.stride;
+				output.elements[index] += 100.0f;
+			}
+		}
+	}
+
+	Utils::copyFromMatrix(cudasaveframe, output, 0, 1.0f);
+	//cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
+	string savefilename(folder);
+	savefilename.append("/CudaOutput/Output.tif");
+	imwrite(savefilename, cudasaveframe);
+
 	return 0;
 }
 
 void initTracker(char* ext){
-	char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim";
 	printf("Start Tracker...\n\nFolder: %s\n", folder);
 	
 	//Load file list
@@ -134,7 +167,6 @@ void runTracker(){
 		float x = candidates.elements[i];
 		float y = candidates.elements[i + candidates.stride];
 		float mag = candidates.elements[i * FIT_SIZE + FIT_RADIUS + candidates.stride * (HEADER + FIT_RADIUS)];
-		int thisoffset = i * DIM_OF_STATE;
         float firstState[] = {x, y, 0.0f, 0.0f, 0.0f, 0.0f, mag};
 		updateStateVector(firstState, i);
 	}
@@ -152,17 +184,21 @@ void initParticleFilter(Matrix aInitStack, int aInitParticleFilterIterations, in
 }
 
 void createParticles(float* aStateVectors, float* aParticles){
+	printf("\nCreating Particles ... %d", 0);
     for (int i=0; i < _currentLength; i++) {
-		float* vState = &aStateVectors[i * DIM_OF_STATE];
+		printf("\rCreating Particles ... %d", i);
+		int stateVectorIndex = i * DIM_OF_STATE;
+		int stateVectorParticleIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
         for (int vIndex = 0; vIndex < _mNbParticles; vIndex++) {
-            float* vProposal = new float[DIM_OF_STATE + 1];
+            float vProposal[DIM_OF_STATE + 1];
+			int particleIndex = stateVectorParticleIndex + vIndex * (DIM_OF_STATE + 1);
             for (int vI = 0; vI < DIM_OF_STATE; vI++) {
-                vProposal[vI] = vState[vI];
+                vProposal[vI] = aStateVectors[stateVectorIndex + vI];
             }
 //				Init the weight as a last dimension
             vProposal[DIM_OF_STATE] = 1.0f; //not 0!			
             //add the new particle
-            copyParticle(aParticles, vProposal, vIndex);
+            copyParticle(aParticles, vProposal, particleIndex);
         }
     }
 	return;
@@ -198,10 +234,13 @@ void scaleSigmaOfRW(float vScaler) {
 }
 
 void DrawParticlesWithRW(float* aParticles) {
+	printf("\nDrawing Particles ... %d", 0);
 	for(int i=0; i<_currentLength;i++){
+		printf("\rDrawing Particles ... %d", i);
+		int stateVectorIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
         for (int j=0; j<_mNbParticles; j++){
-			int offset = i * _mNbParticles * (DIM_OF_STATE + 1);
-			randomWalkProposal(aParticles, offset);
+			int particleIndex = stateVectorIndex + j * (DIM_OF_STATE + 1);
+			randomWalkProposal(aParticles, particleIndex);
         }
 	}
     return;
@@ -209,14 +248,16 @@ void DrawParticlesWithRW(float* aParticles) {
 
 void randomWalkProposal(float* aParticles, int offset) {
     for (int aI = 0; aI < DIM_OF_STATE; aI++) {
-        aParticles[aI] += var_nor() * _mSigmaOfRandomWalk[aI];
+        aParticles[aI + offset] += var_nor() * _mSigmaOfRandomWalk[aI];
     }
 	return;
 }
 
 void updateParticleWeights(Matrix aObservationStack, int aFrameIndex){
+	printf("\nUpdating Weights ... %d", 0);
 	for(int i=0; i<_currentLength; i++){
-		int offset = i * _mNbParticles * (DIM_OF_STATE + 1);
+		printf("\rUpdating Weights ... %d", i);
+		int stateVectorIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
         float vSumOfWeights = 0.0f;
         //
         // Calculate the likelihoods for each particle and save the biggest one
@@ -224,8 +265,8 @@ void updateParticleWeights(Matrix aObservationStack, int aFrameIndex){
         float* vLogLikelihoods = (float*)malloc(sizeof(float) * _mNbParticles);
         float vMaxLogLikelihood = -FLT_MAX;
 		bool* vBitmap = (bool*)malloc(sizeof(bool) * _mWidth * _mHeight);
-        generateParticlesIntensityBitmap(_mParticles, offset, vBitmap);
-        calculateLikelihoods(aObservationStack, vBitmap, aFrameIndex, vLogLikelihoods, _mParticles, offset);
+        generateParticlesIntensityBitmap(_mParticles, stateVectorIndex, vBitmap);
+        calculateLikelihoods(aObservationStack, vBitmap, aFrameIndex, vLogLikelihoods, _mParticles, stateVectorIndex);
         for (int vI = 0; vI < _mNbParticles; vI++) {
             if (vLogLikelihoods[vI] > vMaxLogLikelihood) {
                 vMaxLogLikelihood = vLogLikelihoods[vI];
@@ -238,9 +279,9 @@ void updateParticleWeights(Matrix aObservationStack, int aFrameIndex){
         int vI = 0;
 		for (int vI = 0; vI < _mNbParticles; vI++) {
             vLogLikelihoods[vI] -= vMaxLogLikelihood;
-			int index = offset + vI * DIM_OF_STATE + DIM_OF_STATE;
-            _mParticles[index] = _mParticles[index] * exp(vLogLikelihoods[vI]);
-            vSumOfWeights += _mParticles[index];
+			int particleWeightIndex = stateVectorIndex + vI * (DIM_OF_STATE + 1) + DIM_OF_STATE;
+            _mParticles[particleWeightIndex] = _mParticles[particleWeightIndex] * exp(vLogLikelihoods[vI]);
+            vSumOfWeights += _mParticles[particleWeightIndex];
             vI++;
         }
         //
@@ -248,11 +289,11 @@ void updateParticleWeights(Matrix aObservationStack, int aFrameIndex){
         //
         if (vSumOfWeights == 0.0f) { //can happen if the winning particle before had a weight of 0.0
 			for (int vI = 0; vI < _mNbParticles; vI++) {
-                _mParticles[offset + vI * DIM_OF_STATE + DIM_OF_STATE] = 1.0f / (float)_mNbParticles;
+                _mParticles[stateVectorIndex + vI * (DIM_OF_STATE+1) + DIM_OF_STATE] = 1.0f / (float)_mNbParticles;
             }
         } else {
 			for (int vI = 0; vI < _mNbParticles; vI++) {
-                _mParticles[offset + vI * DIM_OF_STATE + DIM_OF_STATE] /= vSumOfWeights;
+                _mParticles[stateVectorIndex + vI * (DIM_OF_STATE+1) + DIM_OF_STATE] /= vSumOfWeights;
             }
         }
 		free(vLogLikelihoods);
@@ -269,7 +310,7 @@ void resample(float* aParticles){
 	return;
 }
 
-void generateParticlesIntensityBitmap(float* setOfParticles, int offset, bool* vBitmap) {
+void generateParticlesIntensityBitmap(float* setOfParticles, int stateVectorIndex, bool* vBitmap) {
 // convert to pixel distance and multiply with 3: 4
     float vMaxDistancexy = (3.0f * _mSigmaPSFxy / _spatialRes);
 // get a bounding box around the each feature point
@@ -282,26 +323,26 @@ void generateParticlesIntensityBitmap(float* setOfParticles, int offset, bool* v
         }
     }
 	for( int i=0; i<_mNbParticles; i++){
-		int zero = offset + i * (DIM_OF_STATE + 1);
-        if (setOfParticles[zero] - vMaxDistancexy < 0) {
+		int particleIndex = stateVectorIndex + i * (DIM_OF_STATE + 1);
+        if (setOfParticles[particleIndex] - vMaxDistancexy < 0) {
             vXStart = 0;
         } else {
-			vXStart = (int)boost::math::round<float>(setOfParticles[zero] - vMaxDistancexy);
+			vXStart = (int)boost::math::round<float>(setOfParticles[particleIndex] - vMaxDistancexy);
         }
-        if (setOfParticles[zero] + vMaxDistancexy >= _mWidth) {
+        if (setOfParticles[particleIndex] + vMaxDistancexy >= _mWidth) {
             vXEnd = _mWidth - 1;
         } else {
-            vXEnd = (int)boost::math::round<float>(setOfParticles[zero] + vMaxDistancexy);
+            vXEnd = (int)boost::math::round<float>(setOfParticles[particleIndex] + vMaxDistancexy);
         }
-        if (setOfParticles[zero + 1] - vMaxDistancexy < 0) {
+        if (setOfParticles[particleIndex + 1] - vMaxDistancexy < 0) {
             vYStart = 0;
         } else {
-            vYStart = (int)boost::math::round<float>(setOfParticles[zero + 1] - vMaxDistancexy);
+            vYStart = (int)boost::math::round<float>(setOfParticles[particleIndex + 1] - vMaxDistancexy);
         }
-        if (setOfParticles[zero + 1] + vMaxDistancexy >= _mHeight) {
+        if (setOfParticles[particleIndex + 1] + vMaxDistancexy >= _mHeight) {
             vYEnd = _mHeight - 1;
         } else {
-            vYEnd = (int)boost::math::round<float>(setOfParticles[zero + 1] + vMaxDistancexy);
+            vYEnd = (int)boost::math::round<float>(setOfParticles[particleIndex + 1] + vMaxDistancexy);
         }
         for (int vY = vYStart; vY <= vYEnd && vY < _mHeight; vY++) {
 			int boffset = vY * _mWidth;
@@ -313,12 +354,13 @@ void generateParticlesIntensityBitmap(float* setOfParticles, int offset, bool* v
     return;
 }
 
-void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameIndex, float* vLogLikelihoods, float* mParticles, int offset){
+void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameIndex, float* vLogLikelihoods, float* mParticles, int stateVectorIndex){
 	//calculate ideal image
-	for(int vI = offset; vI < offset + _mNbParticles; vI++){
-		offset += DIM_OF_STATE + 1;
+	int nextStateVectorIndex = stateVectorIndex + _mNbParticles * (DIM_OF_STATE + 1);
+	for(int vI = 0; vI < _mNbParticles; vI++){
+		int particleIndex = stateVectorIndex + vI * (DIM_OF_STATE + 1);
 		float* vIdealImage = (float*)malloc(sizeof(float) * _mWidth * _mHeight);
-		generateIdealImage(mParticles, offset, vIdealImage);
+		generateIdealImage(mParticles, particleIndex, vIdealImage);
 		//calculate likelihood
 		vLogLikelihoods[vI] = calculateLogLikelihood(aObservationStack, aFrameIndex, vIdealImage, vBitmap);
 		free(vIdealImage);
@@ -328,11 +370,11 @@ void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameInd
 
 void generateIdealImage(float* particles, int offset, float* vIdealImage) {
     addBackgroundToImage(vIdealImage, _mBackground);
-    addFeaturePointToImage(vIdealImage, particles[0], particles[1], particles[6]);
+    addFeaturePointToImage(vIdealImage, particles[offset], particles[offset + 1], particles[offset + 6], _mWidth, _mHeight);
     return;
 }
 
-void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity) {
+void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, int width, int height) {
     float vVarianceXYinPx = _mSigmaPSFxy * _mSigmaPSFxy / (_spatialRes * _spatialRes);
     float vMaxDistancexy = (3.0f * _mSigmaPSFxy / _spatialRes);
 
@@ -347,19 +389,19 @@ void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity) {
     } else {
         vYStart = (int) (y + .5f) - (int) (vMaxDistancexy + .5f);
     }
-    if (x + .5f + (vMaxDistancexy + .5f) >= _mWidth) {
-        vXEnd = _mWidth - 1;
+    if (x + .5f + (vMaxDistancexy + .5f) >= width) {
+        vXEnd = width - 1;
     } else {
         vXEnd = (int) (x + .5f) + (int) (vMaxDistancexy + .5f);
     }
-    if (y + .5f + (vMaxDistancexy + .5f) >= _mHeight) {
-        vYEnd = _mHeight - 1;
+    if (y + .5f + (vMaxDistancexy + .5f) >= height) {
+        vYEnd = height - 1;
     } else {
         vYEnd = (int) (y + .5f) + (int) (vMaxDistancexy + .5f);
     }
-    for (int vY = vYStart; vY <= vYEnd && vY < _mHeight; vY++) {
-		int woffset = vY * _mWidth;
-        for (int vX = vXStart; vX <_mWidth; vX++) {
+    for (int vY = vYStart; vY <= vYEnd && vY < height; vY++) {
+		int woffset = vY * width;
+        for (int vX = vXStart; vX <width; vX++) {
             aImage[woffset + vX] += (aIntensity * expf(-(powf(vX - x + .5f, 2.0f) + powf(vY - y + .5f, 2.0f)) / (2.0f * vVarianceXYinPx)));
         }
     }
@@ -420,9 +462,8 @@ void copyStateVector(float* dest, float* source, int index){
 }
 
 void copyParticle(float* dest, float* source, int index){
-	int boffset = index * MAX_DETECTIONS * (DIM_OF_STATE + 1);
 	for(int i=0; i < DIM_OF_STATE + 1; i++){
-		 dest[i + boffset] = source[i];
+		 dest[i + index] = source[i];
 	}
 	return;
 }
