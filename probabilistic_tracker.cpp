@@ -22,7 +22,7 @@ void randomWalkProposal(float* aParticles, int offset);
 void updateParticleWeights(Matrix aObservationStack, int aFrameIndex);
 void generateParticlesIntensityBitmap(float* setOfParticles, int offset, bool* vBitmap);
 void estimateStateVectors(float* aStateVectors, float* aParticles);
-void resample(float* aParticles);
+bool resample(float* aParticles);
 void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameIndex, float* vLogLikelihoods, float* mParticles, int offset);
 void generateIdealImage(float* particles, int offset, float* vIdealImage);
 void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameIndex, float* vLogLikelihoods, float* mParticles, int offset);
@@ -30,6 +30,7 @@ void addBackgroundToImage(float* aImage, float aBackground);
 void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, int width, int height);
 float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage, bool* aBitmap);
 void copyStateVector(float* dest, float* source, int index);
+void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex);
 void copyParticle(float* dest, float* source, int index);
 void updateStateVector(float* vector, int index);
 extern int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
@@ -55,6 +56,7 @@ float _mSigmaOfDynamics[] = {20.0f, 20.0f, 20.0f, 1.0f};
 bool _mDoPrecisionCorrection = true;
 int _currentLength;
 int _mNbParticles = 1500;
+int _mResamplingThreshold = _mNbParticles / 2;
 normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
@@ -64,7 +66,6 @@ char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim1";
 int main(int argc, char* argv[]){
 	initTracker(".tif");
 	runTracker();
-
 	Matrix output;
 	output.width = _mWidth*_scalefactor;
 	output.stride=output.width;
@@ -217,7 +218,7 @@ void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFra
 
         estimateStateVectors(_mStateVectors, _mParticles);
 
-        //resample(_mParticles);
+        resample(_mParticles);
     }
 
     //restore the sigma vector
@@ -303,9 +304,9 @@ void updateParticleWeights(Matrix aObservationStack, int aFrameIndex){
 
 //Estimates all state vectors from the particles and their weights
 void estimateStateVectors(float* aStateVectors, float* aParticles){
-	printf("\nEstimating Vectors ... %d\%", 0);
+	printf("\nEstimating Vectors ... %d%", 0);
 	for(int i=0; i< _currentLength; i++){
-		printf("\rEstimating Vectors ... %d\%", (i * 100)/_currentLength);
+		printf("\rEstimating Vectors ... %d%", (i * 100)/_currentLength);
 		int stateVectorIndex = i * DIM_OF_STATE;
 		int stateVectorParticleIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
         /*
@@ -325,8 +326,65 @@ void estimateStateVectors(float* aStateVectors, float* aParticles){
 	return;
 }
 
-void resample(float* aParticles){
-	return;
+	/**
+     *
+     * @param aParticles set of parameters to resample.
+     * @return true if resampling was performed, false if not.
+     */
+bool resample(float* aParticles){
+	printf("\nResampling ... %d%", 0);
+	for(int i=0; i < _currentLength; i++){
+		printf("\rResampling ... %d%", (i * 100)/_currentLength);
+		int stateVectorParticleIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
+        //
+        // First check if the threshold is smaller than Neff
+        //
+        float vNeff = 0;
+		for(int j=0; j<_mNbParticles; j++){
+			int particleIndex = stateVectorParticleIndex + j * (DIM_OF_STATE + 1);
+            vNeff += aParticles[particleIndex + DIM_OF_STATE] * aParticles[particleIndex + DIM_OF_STATE];
+        }
+        vNeff = 1.0f / vNeff;
+
+        if (vNeff > _mResamplingThreshold) {
+//				System.out.println("no resampling");
+            return false; //we won't do the resampling
+        }
+        //
+        // Begin resampling
+        //
+//			System.out.println("Resampling");
+        float VNBPARTICLES_1 = 1.0f / (float) _mNbParticles;
+        double* vC = (double*)malloc(sizeof(double) * (_mNbParticles + 1));
+        vC[0] = 0.0;
+        for (int vInd = 1; vInd <= _mNbParticles; vInd++) {
+			int particleIndex = stateVectorParticleIndex + (vInd - 1) * (DIM_OF_STATE + 1);
+            vC[vInd] = vC[vInd - 1] + aParticles[particleIndex + DIM_OF_STATE];
+        }
+
+        double vU = (rand() * (double)VNBPARTICLES_1)/RAND_MAX;
+
+        float* vFPParticlesCopy = (float*)malloc(sizeof(float) * _mNbParticles * (DIM_OF_STATE + 1));
+		copyStateParticles(vFPParticlesCopy, aParticles, stateVectorParticleIndex);
+		int vI = 0;
+        for (int vParticleCounter = 0; vParticleCounter < _mNbParticles; vParticleCounter++) {
+            while (vU > vC[vI]) {
+                if (vI < _mNbParticles) //this can happen due to numerical reasons
+                {
+                    vI++;
+                }
+            }
+			int particleIndex = stateVectorParticleIndex + (vI - 1) * (DIM_OF_STATE + 1);
+//           for (int vK = 0; vK < DIM_OF_STATE; vK++) {
+//                aParticles[particleIndex + vK] = vFPParticlesCopy[particleIndex - stateVectorParticleIndex + vK];
+//            }
+//            aParticles[particleIndex + DIM_OF_STATE] = VNBPARTICLES_1;
+            vU += VNBPARTICLES_1;
+        }
+		free(vC);
+		free(vFPParticlesCopy);
+    }
+	return true;
 }
 
 void generateParticlesIntensityBitmap(float* setOfParticles, int stateVectorIndex, bool* vBitmap) {
@@ -476,6 +534,14 @@ void copyStateVector(float* dest, float* source, int index){
 		 for(int j=0; j<DIM_OF_STATE; j++){
 			 dest[boffset + soffset + j] = source[boffset + soffset + j];
 		 }
+	}
+	return;
+}
+
+void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex){
+	for(int i=0; i < _mNbParticles; i++){
+		int particleIndex = stateVectorParticleIndex + i * (DIM_OF_STATE + 1);
+		copyParticle(dest, source, particleIndex);
 	}
 	return;
 }
