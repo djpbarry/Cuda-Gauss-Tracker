@@ -541,8 +541,8 @@ void copyStateVector(float* dest, float* source, int index){
 void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex){
 	for(int i=0; i < _mNbParticles; i++){
 		int particleIndex = stateVectorParticleIndex + i * (DIM_OF_STATE + 1);
-		for(int i=0; i < DIM_OF_STATE + 1; i++){
-			dest[i + particleIndex - stateVectorParticleIndex] = source[i + particleIndex];
+		for(int j=0; j < DIM_OF_STATE + 1; j++){
+			dest[j + particleIndex - stateVectorParticleIndex] = source[j + particleIndex];
 		}
 	}
 	return;
