@@ -61,7 +61,7 @@ normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 Matrix _mOriginalImage;
-char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim1";
+char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim3";
 
 int main(int argc, char* argv[]){
 	initTracker(".tif");
@@ -541,7 +541,9 @@ void copyStateVector(float* dest, float* source, int index){
 void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex){
 	for(int i=0; i < _mNbParticles; i++){
 		int particleIndex = stateVectorParticleIndex + i * (DIM_OF_STATE + 1);
-		copyParticle(dest, source, particleIndex);
+		for(int i=0; i < DIM_OF_STATE + 1; i++){
+			dest[i + particleIndex - stateVectorParticleIndex] = source[i + particleIndex];
+		}
 	}
 	return;
 }

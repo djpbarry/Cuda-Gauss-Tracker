@@ -25,18 +25,18 @@ float testMultiEvaluate(float x0, float y0, float mag, int x, int y);
 int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag);
 void testCentreOfMass(float *x, float *y, int index, Matrix image);
 
-float _spatialRes = 42.0f;
+float _spatialRes = 40.0f;
 float _sigmaEst, _2sig2;
 float _maxThresh = 5.0f;
 float _numAp = 1.4f;
-float _lambda = 650.0f;
-int _scalefactor = 1;
+float _lambda = 488.0f;
+int _scalefactor = 4;
 char* _ext = ".tif";
 
-//int main(int argc, char* argv[]){
-//	runDetector();
-//	return 0;
-//}
+/*int main(int argc, char* argv[]){
+	runDetector();
+	return 0;
+}*/
 
 void runDetector()
 {
@@ -55,7 +55,7 @@ void runDetector()
 	_2sig2 = 2.0f * _sigmaEst * _sigmaEst;
 
 	printf("\n\nStart Detector...\n");
-	char* folder = "C:/Users/barry05/Desktop/CUDA Gauss Localiser Tests/Test6";
+	char* folder = "C:/Users/barry05/Desktop/2012.08.08  MEA Alex561-Phalloidin Alexa488-A36 Alexa561-A27/SuperRes Analysis/Capture 5/DiffSequence";
 	printf("\nFolder: %s\n", folder);
 	
 	vector<path> v = Utils::getFiles(folder);
