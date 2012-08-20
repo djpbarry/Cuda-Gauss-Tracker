@@ -132,6 +132,18 @@ static void getDims(vector<path> v, const char* ext, int* dims){
 	}
 	return;
 }
+
+/*
+* Copies the contents of Matrix source into dest. Elements within source are copied starting at the specified index and stopping when dest is full.
+* @param source The source Matrix to be copied
+* @param dest The destination Matrix
+* @param start The first index of source elements to be copied
+*/
+static void matrixCopy(Matrix source, Matrix dest, int start){
+	for(int i=0; i<=dest.size; i++){
+		dest.elements[i] = source.elements[i + start];
+	}
+}
 };
 
 #endif
