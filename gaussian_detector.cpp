@@ -15,7 +15,7 @@ using namespace cv;
 void runDetector();
 int findParticles(Mat image, Matrix B, int count, int z);
 extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThresh);
-int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
+extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
 float testEvaluate(float x0, float y0, float max, int x, int y, float sig2);
 float testGetRSquared(int x0, float srs, Matrix M);
 bool testDraw2DGaussian(Matrix image, float mag, float x0, float y0);
@@ -25,12 +25,12 @@ float testMultiEvaluate(float x0, float y0, float mag, int x, int y);
 int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag);
 void testCentreOfMass(float *x, float *y, int index, Matrix image);
 
-float _spatialRes = 40.0f;
+extern "C" float _spatialRes = 40.0f;
 float _sigmaEst, _2sig2;
 float _maxThresh = 5.0f;
 float _numAp = 1.4f;
 float _lambda = 488.0f;
-int _scalefactor = 4;
+extern "C" int _scalefactor = 4;
 char* _ext = ".tif";
 
 /*int main(int argc, char* argv[]){
@@ -40,11 +40,11 @@ char* _ext = ".tif";
 
 void runDetector()
 {
-	_spatialRes = Utils::getInput("spatial resolution in nm", _spatialRes);
-	_maxThresh = Utils::getInput("maximum intensity threshold", _maxThresh);
-	_lambda = Utils::getInput("wavelength of emitted light in nm", _lambda);
-	_scalefactor = Utils::round(Utils::getInput("scaling factor for output", (float)_scalefactor));
-	Utils::getTextInput("file extension", _ext);
+	_spatialRes = getInput("spatial resolution in nm", _spatialRes);
+	_maxThresh = getInput("maximum intensity threshold", _maxThresh);
+	_lambda = getInput("wavelength of emitted light in nm", _lambda);
+	_scalefactor = round(getInput("scaling factor for output", (float)_scalefactor));
+	getTextInput("file extension", _ext);
 	printf("\nSpatial resolution = %.0f nm", _spatialRes);
 	printf("\nMaximum intensity threshold = %.0f", _maxThresh);
 	printf("\nWavelength of emitted light = %.0f nm", _lambda);
@@ -58,8 +58,8 @@ void runDetector()
 	char* folder = "C:/Users/barry05/Desktop/2012.08.08  MEA Alex561-Phalloidin Alexa488-A36 Alexa561-A27/SuperRes Analysis/Capture 5/DiffSequence";
 	printf("\nFolder: %s\n", folder);
 	
-	vector<path> v = Utils::getFiles(folder);
-	int frames = Utils::countFiles(v, _ext);
+	vector<path> v = getFiles(folder);
+	int frames = countFiles(v, _ext);
 	vector<path>::iterator v_iter;
 
 	// Storage for regions containing candidate particles
@@ -114,10 +114,10 @@ void runDetector()
 			testoutput.elements[p] = 0.0f;
 		}
 		Mat testsaveframe(height*_scalefactor,width*_scalefactor,CV_32F);*/
-		while(Utils::round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount<count){
-			int x = Utils::round(candidates.elements[outcount + candidates.stride * X_ROW]);
-			int y = Utils::round(candidates.elements[outcount + candidates.stride * Y_ROW]);
-			int best = Utils::round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
+		while(round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount<count){
+			int x = round(candidates.elements[outcount + candidates.stride * X_ROW]);
+			int y = round(candidates.elements[outcount + candidates.stride * Y_ROW]);
+			int best = round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
 			int xRegionCentre = outcount*FIT_SIZE+FIT_RADIUS;
 			int yRegionCentre = FIT_RADIUS+HEADER;
 			if(best>=0){
@@ -142,7 +142,7 @@ void runDetector()
 			}*/
 			outcount++;
 		}
-		Utils::copyFromMatrix(cudasaveframe, cudaoutput, 0, 65535.0f / 255.0f);
+		copyFromMatrix(cudasaveframe, cudaoutput, 0, 65535.0f / 255.0f);
 		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
 		printf("\rWriting Output ... %d", z);
 		string savefilename(folder);
@@ -171,7 +171,7 @@ int findParticles(Mat image, Matrix B, int count, int frame) {
 	A.height = image.rows;
 	A.size = A.width * A.height;
 	A.elements = (float*)malloc(sizeof(float) * A.size);
-	Utils::copyToMatrix(temp, A, 0);
+	copyToMatrix(temp, A, 0);
 	return maxFinder(A, B, _maxThresh, true, count, 0, frame);
 }
 
@@ -201,7 +201,7 @@ float testGetRSquared(int x0, float srs, Matrix M) {
 
 //Searches for local maxima in A, greater in magnitude than maxThresh, and copies the local neighbourhood
 //surrounding the maximum into B. Returns the total number of detected maxima in A.
-int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z) 
+extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z) 
 { 
 	float min, max;
 	int i, j;

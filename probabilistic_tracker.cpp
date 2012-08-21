@@ -10,6 +10,7 @@
 
 using namespace boost;
 
+extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int currentLength, int nbParticles);
 int initTracker(char* ext);
 void setup();
 void runTracker();
@@ -35,10 +36,10 @@ void copyStateVector(float* dest, float* source, int index);
 void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex);
 void copyParticle(float* dest, float* source, int index);
 void updateStateVector(float* vector, int index);
-extern int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
+extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
 
-extern float _spatialRes;
-extern int _scalefactor;
+extern "C" float _spatialRes;
+extern "C" int _scalefactor;
 int _mHeight;
 int _mWidth;
 int _mNFrames;
@@ -49,18 +50,18 @@ float* _mStateVectorsMemory;
 float* _mMaxLogLikelihood;
 int _mFrameOfInitialization = 0;
 int _mInitRWIterations = 1;
-float _mSigmaPSFxy;
 float _mWavelengthInNm = 650.0f;
 float _mNA = 1.4f;
+extern "C" float _mSigmaPSFxy = (0.21f * _mWavelengthInNm / _mNA);
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 float _mBackground = 1.0f;
-float _mSigmaOfDynamics[] = {20.0f, 20.0f, 20.0f, 1.0f};
+float _mSigmaOfDynamics[] = {200.0f, 200.0f, 1.0f, 1.0f};
 bool _mDoResampling = true;
 bool _mDoPrecisionOptimization = true;
 int _currentLength;
-int _mNbParticles = 1000;
+int _mNbParticles = 100;
 int _mResamplingThreshold = _mNbParticles / 2;
-int _mRepSteps = 3;
+int _mRepSteps = 1;
 normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
@@ -79,15 +80,15 @@ int initTracker(char* ext){
 	printf("Start Tracker...\n\nFolder: %s\n", folder);
 	
 	//Load file list
-	vector<path> v = Utils::getFiles(folder);
+	vector<path> v = getFiles(folder);
 
 	//Count files with specified extension
-	int numFiles = Utils::countFiles(v, ext);
+	int numFiles = countFiles(v, ext);
 	vector<path>::iterator v_iter;
 	
 	//Get dimensions of first image
 	int dims[2];
-	Utils::getDims(v, ext, dims);
+	getDims(v, ext, dims);
 
 	//Construct image volume
 	_mOriginalImage.width = dims[0];
@@ -106,7 +107,7 @@ int initTracker(char* ext){
 		if((strcmp(ext_s.c_str(), ext) == 0)) {
 			printf("\rLoading Images ... %d%%", ((thisFrame + 1) * 100) / numFiles);
 			frame = imread((*v_iter).string(), -1);
-			Utils::copyToMatrix(frame, _mOriginalImage, thisFrame);
+			copyToMatrix(frame, _mOriginalImage, thisFrame);
 			thisFrame++;
 		}
 	}
@@ -123,7 +124,6 @@ void setup() {
     _mStateVectorsMemory = (float*)malloc(sizeof(float) * _mNFrames * MAX_DETECTIONS * DIM_OF_STATE);
 	_mStateVectors = (float*)malloc(sizeof(float) * MAX_DETECTIONS * DIM_OF_STATE);
     _mMaxLogLikelihood = (float*)malloc(sizeof(float) * _mNFrames);
-    _mSigmaPSFxy = (0.21f * _mWavelengthInNm / _mNA);
     return;
 }
 
@@ -188,10 +188,20 @@ void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFra
     for (int vI = 0; vI < DIM_OF_STATE; vI++) {
         vSigmaOfRWSave[vI] = _mSigmaOfRandomWalk[vI];
     }
+	Matrix frame;
+	frame.width = aImageStack.width;
+	frame.height = aImageStack.height;
+	frame.stride = frame.width;
+	frame.depth = 1;
+	frame.size = frame.width * frame.height;
+	frame.elements = (float*)malloc(sizeof(float) * frame.size);
+	matrixCopy(aImageStack, frame, 0);
+ 	
     for (int vR = 0; vR < aInitPFIterations; vR++) {
         scaleSigmaOfRW(1.0f / powf(3.0f, (float)vR));
         DrawParticlesWithRW(_mParticles);
 
+		//updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
         updateParticleWeights(aImageStack, aFrameOfInit);
 
         estimateStateVectors(_mStateVectors, _mParticles);
@@ -203,6 +213,7 @@ void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFra
     for (int vI = 0; vI < DIM_OF_STATE; vI++) {
         _mSigmaOfRandomWalk[vI] = vSigmaOfRWSave[vI];
     }
+	free(frame.elements);
 	return;
 }
 
@@ -413,7 +424,6 @@ void generateParticlesIntensityBitmap(float* setOfParticles, int stateVectorInde
 
 void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameIndex, float* vLogLikelihoods, float* mParticles, int stateVectorIndex){
 	//calculate ideal image
-	int nextStateVectorIndex = stateVectorIndex + _mNbParticles * (DIM_OF_STATE + 1);
 	for(int vI = 0; vI < _mNbParticles; vI++){
 		int particleIndex = stateVectorIndex + vI * (DIM_OF_STATE + 1);
 		float* vIdealImage = (float*)malloc(sizeof(float) * _mWidth * _mHeight);
@@ -458,7 +468,7 @@ void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, i
     }
     for (int vY = vYStart; vY <= vYEnd && vY < height; vY++) {
 		int woffset = vY * width;
-        for (int vX = vXStart; vX <width; vX++) {
+        for (int vX = vXStart; vX <= vXEnd && vX <width; vX++) {
             aImage[woffset + vX] += (aIntensity * expf(-(powf(vX - x + .5f, 2.0f) + powf(vY - y + .5f, 2.0f)) / (2.0f * vVarianceXYinPx)));
         }
     }
@@ -517,8 +527,17 @@ void runParticleFilter(Matrix aOriginalImage) {
 	output.size = output.width * output.height;
 	output.elements = (float*)malloc(sizeof(float) * output.size);
 	printf("\nRunning Particle Filter ... %d%%", 0);
+	Matrix frame;
+	frame.width = aOriginalImage.width;
+	frame.height = aOriginalImage.height;
+	frame.stride = frame.width;
+	frame.depth = 1;
+	frame.size = frame.width * frame.height;
+	frame.elements = (float*)malloc(sizeof(float) * frame.size);
+			
     for (int vFrameIndex = _mFrameOfInitialization; vFrameIndex < _mTrackTillFrameNb; vFrameIndex++) {
 		printf("\rRunning Particle Filter ... %d%%", (vFrameIndex + 1) * 100 / _mTrackTillFrameNb);
+		matrixCopy(aOriginalImage, frame, vFrameIndex * aOriginalImage.width * aOriginalImage.height);
 		// save a copy of the original sigma to restore it afterwards
 		float vSigmaOfRWSave[DIM_OF_STATE];
 		for (int vI = 0; vI < DIM_OF_STATE; vI++) {
@@ -527,11 +546,42 @@ void runParticleFilter(Matrix aOriginalImage) {
 		for (int vRepStep = 0; vRepStep < _mRepSteps; vRepStep++) {
 			if (vRepStep == 0) {
 				drawNewParticles(_mParticles, _spatialRes); //draw the particles at the appropriate position.
+							_spatialRes /= _scalefactor;
+			//update the view
+			for(int p=0; p<output.width*output.height; p++){
+				output.elements[p] = 0.0f;
+			}
+			Mat cudasaveframe(_mHeight*_scalefactor, _mWidth*_scalefactor,CV_32F);
+			for(int i=0; i<_currentLength; i++){
+				int stateVectorIndex = i * DIM_OF_STATE;
+				/*addFeaturePointToImage(output.elements, _mStateVectors[stateVectorIndex] * _scalefactor,
+					_mStateVectors[stateVectorIndex + 1] * _scalefactor,
+					_mStateVectors[stateVectorIndex + 6], output.width, output.height);*/
+				for(int j=0; j<_mNbParticles; j++){
+					int particleIndex = (i * _mNbParticles + j) * (DIM_OF_STATE + 1);
+					int x = (int)boost::math::round<float>(_mParticles[particleIndex] * _scalefactor);
+					int y = (int)boost::math::round<float>(_mParticles[particleIndex + 1] * _scalefactor);
+					addFeaturePointToImage(output.elements, x, y, _mParticles[particleIndex + DIM_OF_STATE], output.width, output.height);
+					/*if(x > 0 && x < output.width && y > 0 && y < output.height){
+						int index = x + y * output.stride;
+						output.elements[index] += 1.0f;
+					}*/
+				}
+			}
+			copyFromMatrix(cudasaveframe, output, 0, 65535.0f/_mNbParticles);
+			cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
+			string savefilename(folder);
+			savefilename.append("/CudaOutput/");
+			savefilename.append(boost::lexical_cast<string>(vFrameIndex));
+			savefilename.append(".tif");
+			imwrite(savefilename, cudasaveframe);
+			_spatialRes *= _scalefactor;
 			} else {
-				scaleSigmaOfRW(1.0f / powf(3.0f, vRepStep));//(1f - (float)vRepStep / (float)mRepSteps);
+				scaleSigmaOfRW(1.0f / powf(3.0f, (float)vRepStep));//(1f - (float)vRepStep / (float)mRepSteps);
 				DrawParticlesWithRW(_mParticles);
 			}
 
+			//updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
 			updateParticleWeights(aOriginalImage, vFrameIndex);
 
 			estimateStateVectors(_mStateVectors, _mParticles);
@@ -552,36 +602,8 @@ void runParticleFilter(Matrix aOriginalImage) {
 		}
 		//save the new states
 		copyStateVector(_mStateVectorsMemory, _mStateVectors, vFrameIndex);
-		_spatialRes /= _scalefactor;
-		//update the view
-		for(int p=0; p<output.width*output.height; p++){
-			output.elements[p] = 0.0f;
-		}
-		Mat cudasaveframe(_mHeight*_scalefactor, _mWidth*_scalefactor,CV_32F);
-		for(int i=0; i<_currentLength; i++){
-			int stateVectorIndex = i * DIM_OF_STATE;
-			addFeaturePointToImage(output.elements, _mStateVectors[stateVectorIndex] * _scalefactor,
-				_mStateVectors[stateVectorIndex + 1] * _scalefactor,
-				_mStateVectors[stateVectorIndex + 6], output.width, output.height);
-			//for(int j=0; j<_mNbParticles; j++){
-				//int particleIndex = (i * _mNbParticles + j) * (DIM_OF_STATE + 1);
-				//int x = (int)boost::math::round<float>(_mParticles[particleIndex] * _scalefactor);
-				//int y = (int)boost::math::round<float>(_mParticles[particleIndex + 1] * _scalefactor);
-				//if(x > 0 && x < output.width && y > 0 && y < output.height){
-					//int index = x + y * output.stride;
-					//output.elements[index] += _mParticles[particleIndex + DIM_OF_STATE];
-				//}
-			//}
-		}
-		Utils::copyFromMatrix(cudasaveframe, output, 0, 65535.0f/255.0f);
-		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
-		string savefilename(folder);
-		savefilename.append("/CudaOutput/");
-		savefilename.append(boost::lexical_cast<string>(vFrameIndex));
-		savefilename.append(".tif");
-		imwrite(savefilename, cudasaveframe);
-		_spatialRes *= _scalefactor;
     }
+	free(frame.elements);
 }
 
 /**

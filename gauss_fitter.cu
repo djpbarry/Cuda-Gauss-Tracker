@@ -2,6 +2,7 @@
 #include <defs.h>
 #include <math.h>
 #include <stdio.h>
+#include <cuda_utils.h>
 #include "cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -9,8 +10,6 @@
 #define NUM_REPS 1
 
 extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThresh);
-
-void checkCudaError();
 
 __shared__ float _2sig2, _maxThresh, xyStepSize, magStepSize;
 
@@ -285,13 +284,4 @@ __device__ float sumMultiResiduals(int x0, float *xe, float *ye, float *mag, cha
 
 __device__ float multiEvaluate(float x0, float y0, float mag, int x, int y) {
 	return mag * __expf(-__fdividef(((x - x0)*(x - x0) + (y - y0)*(y - y0)), (_2sig2)));
-}
-
-void checkCudaError(){
-	cudaError_t err = cudaGetLastError();
-	if( cudaSuccess != err) {
-		printf((stderr, "Runtime API error %d: %s.\n", (int)err, cudaGetErrorString( err ) ));
-        exit(-1);
-	}
-	return;
 }
