@@ -55,18 +55,18 @@ float _mNA = 1.4f;
 extern "C" float _mSigmaPSFxy = (0.21f * _mWavelengthInNm / _mNA);
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 float _mBackground = 1.0f;
-float _mSigmaOfDynamics[] = {200.0f, 200.0f, 1.0f, 1.0f};
+float _mSigmaOfDynamics[] = {150.0f, 150.0f, 1.0f, 1.0f};
 bool _mDoResampling = true;
 bool _mDoPrecisionOptimization = true;
 int _currentLength;
-int _mNbParticles = 100;
+int _mNbParticles = 1000;
 int _mResamplingThreshold = _mNbParticles / 2;
-int _mRepSteps = 1;
+int _mRepSteps = 5;
 normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 Matrix _mOriginalImage;
-char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim3";
+char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim1";
 
 int main(int argc, char* argv[]){
 	int frames = initTracker(".tif");
@@ -184,6 +184,7 @@ void createParticles(float* aStateVectors, float* aParticles){
 }
 
 void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFrameOfInit){
+	printf("\nInitialising...");
 	float vSigmaOfRWSave[DIM_OF_STATE];
     for (int vI = 0; vI < DIM_OF_STATE; vI++) {
         vSigmaOfRWSave[vI] = _mSigmaOfRandomWalk[vI];
@@ -201,8 +202,8 @@ void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFra
         scaleSigmaOfRW(1.0f / powf(3.0f, (float)vR));
         DrawParticlesWithRW(_mParticles);
 
-		//updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
-        updateParticleWeights(aImageStack, aFrameOfInit);
+		updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles); 
+		//updateParticleWeights(aImageStack, aFrameOfInit);
 
         estimateStateVectors(_mStateVectors, _mParticles);
 
@@ -537,7 +538,7 @@ void runParticleFilter(Matrix aOriginalImage) {
 			
     for (int vFrameIndex = _mFrameOfInitialization; vFrameIndex < _mTrackTillFrameNb; vFrameIndex++) {
 		printf("\rRunning Particle Filter ... %d%%", (vFrameIndex + 1) * 100 / _mTrackTillFrameNb);
-		matrixCopy(aOriginalImage, frame, vFrameIndex * aOriginalImage.width * aOriginalImage.height);
+		matrixCopy(aOriginalImage, frame, vFrameIndex * frame.size);
 		// save a copy of the original sigma to restore it afterwards
 		float vSigmaOfRWSave[DIM_OF_STATE];
 		for (int vI = 0; vI < DIM_OF_STATE; vI++) {
@@ -561,11 +562,11 @@ void runParticleFilter(Matrix aOriginalImage) {
 					int particleIndex = (i * _mNbParticles + j) * (DIM_OF_STATE + 1);
 					int x = (int)boost::math::round<float>(_mParticles[particleIndex] * _scalefactor);
 					int y = (int)boost::math::round<float>(_mParticles[particleIndex + 1] * _scalefactor);
-					addFeaturePointToImage(output.elements, x, y, _mParticles[particleIndex + DIM_OF_STATE], output.width, output.height);
-					/*if(x > 0 && x < output.width && y > 0 && y < output.height){
+					//addFeaturePointToImage(output.elements, x, y, _mParticles[particleIndex + DIM_OF_STATE], output.width, output.height);
+					if(x > 0 && x < output.width && y > 0 && y < output.height){
 						int index = x + y * output.stride;
 						output.elements[index] += 1.0f;
-					}*/
+					}
 				}
 			}
 			copyFromMatrix(cudasaveframe, output, 0, 65535.0f/_mNbParticles);
@@ -581,8 +582,8 @@ void runParticleFilter(Matrix aOriginalImage) {
 				DrawParticlesWithRW(_mParticles);
 			}
 
-			//updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
-			updateParticleWeights(aOriginalImage, vFrameIndex);
+			updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
+			//updateParticleWeights(aOriginalImage, vFrameIndex);
 
 			estimateStateVectors(_mStateVectors, _mParticles);
 

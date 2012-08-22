@@ -10,10 +10,7 @@
 #include "device_launch_parameters.h"
 
 extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int currentLength, int nbParticles);
-__global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float* vIdealImage, float* logLikelihoods, float vVarianceXYinPx);
-__device__ float calculateLogLikelihood(Matrix aStackProcs, float* aGivenImage);
-__device__ void generateIdealImage(float* particles, int offset, float* vIdealImage, int width, int height, float vVarianceXYinPx);
-__device__ void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, int width, int height, float vVarianceXYinPx);
+__global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float* logLikelihoods, float vVarianceXYinPx);
 
 extern "C" float _mSigmaPSFxy, _spatialRes;
 
@@ -45,49 +42,43 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 	cudaMemcpy(d_observation.elements, observation.elements, observationSize, cudaMemcpyHostToDevice);
 	checkCudaError();
 
-	// Particles on GPU device
-	float* d_mParticles;
-	size_t mParticlesSize = currentLength * nbParticles * (DIM_OF_STATE + 1) * sizeof(float);
-	cudaMalloc(&d_mParticles, mParticlesSize);
-	checkCudaError();
-	cudaMemcpy(d_mParticles, mParticles, mParticlesSize, cudaMemcpyHostToDevice);
-	checkCudaError();
-
-	// Ideal images on GPU device
-	float* d_vIdealImage;
-	size_t idealImagesSize = currentLength * nbParticles * observation.width * observation.height * sizeof(float);
-	cudaMalloc(&d_vIdealImage, idealImagesSize);
-	checkCudaError();
-
-	// Log likelihoods on GPU device
-	float* d_vLogLikelihoods;
-	size_t logLikelihoodsSize = currentLength * nbParticles * sizeof(float);
-	cudaMalloc(&d_vLogLikelihoods, logLikelihoodsSize);
-	checkCudaError();
-
 	int totalParticles = currentLength * nbParticles;
 	int numblocks = totalParticles / BLOCK_SIZE_X;
 	if (numblocks * BLOCK_SIZE_X < totalParticles) numblocks++;
 	if (numblocks % 2 != 0) numblocks++;
 
+	// Particles on GPU device
+	float* d_mParticles;
+	size_t cudaParticlesSize = numblocks * BLOCK_SIZE_X * (DIM_OF_STATE + 1) * sizeof(float);
+	size_t hostParticlesSize = currentLength * nbParticles * (DIM_OF_STATE + 1) * sizeof(float);
+	cudaMalloc(&d_mParticles, cudaParticlesSize);
+	checkCudaError();
+	cudaMemcpy(d_mParticles, mParticles, hostParticlesSize, cudaMemcpyHostToDevice);
+	checkCudaError();
+
+	// Log likelihoods on GPU device
+	float* d_vLogLikelihoods;
+	size_t cudalogLikelihoodsSize = numblocks * BLOCK_SIZE_X * sizeof(float);
+	size_t hostlogLikelihoodsSize = currentLength * nbParticles * sizeof(float);
+	cudaMalloc(&d_vLogLikelihoods, cudalogLikelihoodsSize);
+	checkCudaError();
+
     dim3 dimBlock(BLOCK_SIZE_X, BLOCK_SIZE_Y);
     dim3 dimGrid(numblocks, 1);
 
-	LogLikelihoodKernel<<<dimGrid, dimBlock>>>(d_observation, d_mParticles, d_vIdealImage, d_vLogLikelihoods, vVarianceXYinPx);
+	LogLikelihoodKernel<<<dimGrid, dimBlock>>>(d_observation, d_mParticles, d_vLogLikelihoods, vVarianceXYinPx);
 
-	cudaMemcpy(mParticles, d_mParticles, mParticlesSize, cudaMemcpyDeviceToHost);
+	cudaMemcpy(mParticles, d_mParticles, hostParticlesSize, cudaMemcpyDeviceToHost);
 	checkCudaError();
 
 	float* vLogLikelihoods = (float*)malloc(sizeof(float) * nbParticles * currentLength);
 
-	cudaMemcpy(vLogLikelihoods, d_vLogLikelihoods, logLikelihoodsSize, cudaMemcpyDeviceToHost);
+	cudaMemcpy(vLogLikelihoods, d_vLogLikelihoods, hostlogLikelihoodsSize, cudaMemcpyDeviceToHost);
 	checkCudaError();
 
 	cudaFree(d_mParticles);
 	checkCudaError();
 	cudaFree(d_vLogLikelihoods);
-	checkCudaError();
-	cudaFree(d_vIdealImage);
 	checkCudaError();
 
 	cudaDeviceReset();
@@ -133,36 +124,23 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 	return;
 }
 
-__global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float* vIdealImage, float* logLikelihoods, float vVarianceXYinPx){
-	//calculate ideal image
+__global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float* logLikelihoods, float vVarianceXYinPx){
 	int particleIndex =  blockIdx.x * blockDim.x + threadIdx.x;
-	generateIdealImage(mParticles, particleIndex, vIdealImage, observation.width, observation.height, vVarianceXYinPx);
-	//calculate likelihood
-	logLikelihoods[particleIndex] = calculateLogLikelihood(observation, vIdealImage);
+	int particleOffset  = particleIndex * (DIM_OF_STATE + 1);
+	float x = mParticles[particleOffset];
+	float y = mParticles[particleOffset + 1];
+	float mag = mParticles[particleOffset + 6];
+
+	float vLogLikelihood = 0.0f;
+	for (int vY = 0; vY < observation.height; vY++) {
+		int woffset = vY * observation.width;
+		for (int vX = 0; vX < observation.width; vX++) {
+			float a = 1.0f + (mag * expf(-(powf(vX - x + .5f, 2.0f) + powf(vY - y + .5f, 2.0f)) / (2.0f * vVarianceXYinPx)));
+			float b = 1.0f + observation.elements[woffset + vX];
+			vLogLikelihood += -a + b * log(a);
+        }
+    }
+	logLikelihoods[particleIndex] = vLogLikelihood;
+
 	return;
-}
-
-__device__ float calculateLogLikelihood(Matrix aStackProcs, float* aGivenImage){
-    float vLogLikelihood = 0;
-	for (int vY = 0; vY < aStackProcs.height; vY++) {
-		int woffset = vY * aStackProcs.width;
-		for (int vX = 0; vX < aStackProcs.width; vX++) {
-			vLogLikelihood += -aGivenImage[woffset + vX] + aStackProcs.elements[woffset + vX] * log(aGivenImage[woffset + vX]);
-        }
-    }
-    return vLogLikelihood;
-}
-
-__device__ void generateIdealImage(float* particles, int offset, float* vIdealImage, int width, int height, float vVarianceXYinPx) {
-    addFeaturePointToImage(vIdealImage, particles[offset], particles[offset + 1], particles[offset + 6], width, height, vVarianceXYinPx);
-    return;
-}
-
-__device__ void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, int width, int height, float vVarianceXYinPx) {
-    for (int vY = 0; vY < height; vY++) {
-		int woffset = vY * width;
-        for (int vX = 0; vX <width; vX++) {
-            aImage[woffset + vX] += (aIntensity * expf(-(powf(vX - x + .5f, 2.0f) + powf(vY - y + .5f, 2.0f)) / (2.0f * vVarianceXYinPx)));
-        }
-    }
 }
