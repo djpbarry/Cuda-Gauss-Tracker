@@ -32,6 +32,7 @@ float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage,
 void runParticleFilter(Matrix aOriginalImage);
 void drawNewParticles(float* aParticlesToRedraw, float spatialRes);
 void drawFromProposalDistribution(float* particles, float spatialRes, int particleIndex);
+int checkStateVectors(float* stateVectors, float* particles, int width, int height, int nVectors, int nParticles);
 void copyStateVector(float* dest, float* source, int index);
 void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex);
 void copyParticle(float* dest, float* source, int index);
@@ -59,22 +60,22 @@ float _mSigmaOfDynamics[] = {150.0f, 150.0f, 1.0f, 1.0f};
 bool _mDoResampling = true;
 bool _mDoPrecisionOptimization = true;
 int _currentLength;
-int _mNbParticles = 1000;
+int _mNbParticles = 100;
 int _mResamplingThreshold = _mNbParticles / 2;
-int _mRepSteps = 5;
+int _mRepSteps = 1;
 normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 Matrix _mOriginalImage;
 char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim1";
 
-int main(int argc, char* argv[]){
+/*int main(int argc, char* argv[]){
 	int frames = initTracker(".tif");
 	runTracker();
 	printf("\n\n");
 
 	return 0;
-}
+}*/
 
 int initTracker(char* ext){
 	printf("Start Tracker...\n\nFolder: %s\n", folder);
@@ -202,8 +203,8 @@ void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFra
         scaleSigmaOfRW(1.0f / powf(3.0f, (float)vR));
         DrawParticlesWithRW(_mParticles);
 
-		updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles); 
-		//updateParticleWeights(aImageStack, aFrameOfInit);
+		//updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles); 
+		updateParticleWeights(aImageStack, aFrameOfInit);
 
         estimateStateVectors(_mStateVectors, _mParticles);
 
@@ -562,11 +563,11 @@ void runParticleFilter(Matrix aOriginalImage) {
 					int particleIndex = (i * _mNbParticles + j) * (DIM_OF_STATE + 1);
 					int x = (int)boost::math::round<float>(_mParticles[particleIndex] * _scalefactor);
 					int y = (int)boost::math::round<float>(_mParticles[particleIndex + 1] * _scalefactor);
-					//addFeaturePointToImage(output.elements, x, y, _mParticles[particleIndex + DIM_OF_STATE], output.width, output.height);
-					if(x > 0 && x < output.width && y > 0 && y < output.height){
+					addFeaturePointToImage(output.elements, x, y, _mParticles[particleIndex + DIM_OF_STATE], output.width, output.height);
+					/*if(x > 0 && x < output.width && y > 0 && y < output.height){
 						int index = x + y * output.stride;
 						output.elements[index] += 1.0f;
-					}
+					}*/
 				}
 			}
 			copyFromMatrix(cudasaveframe, output, 0, 65535.0f/_mNbParticles);
@@ -582,10 +583,13 @@ void runParticleFilter(Matrix aOriginalImage) {
 				DrawParticlesWithRW(_mParticles);
 			}
 
-			updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
-			//updateParticleWeights(aOriginalImage, vFrameIndex);
+			//updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
+			updateParticleWeights(aOriginalImage, vFrameIndex);
 
 			estimateStateVectors(_mStateVectors, _mParticles);
+
+			int killed = checkStateVectors(_mStateVectors, _mParticles, frame.width, frame.height, _currentLength, _mNbParticles);
+			_currentLength -= killed;
 
 			if (_mDoResampling) {
 				if (!resample(_mParticles)) {//further iterations are not necessary.
@@ -636,6 +640,35 @@ void drawFromProposalDistribution(float* particles, float spatialRes, int partic
     if (particles[6 + particleIndex] < _mBackground + 1) {
         particles[6 + particleIndex] = _mBackground + 1;
     }
+}
+
+/*
+* Check to ensure that all stateVectors represent objects within the field of view. Any that are not are "killed".
+*/
+int checkStateVectors(float* stateVectors, float* particles, int width, int height, int nVectors, int nParticles){
+	int killed = 0;
+	int vEnd = nVectors * DIM_OF_STATE;
+	int pEnd = nVectors * nParticles * (DIM_OF_STATE + 1);
+	for(int v = 0, i = 0; v < nVectors; v++){
+		int svIndex = i * (DIM_OF_STATE);
+		float x = stateVectors[svIndex];
+		float y = stateVectors[svIndex + 1];
+		// If (x, y) is outside image boundary, shift all subsequent state vectors forward one slot
+		if(x < 0.0f || x >= width || y < 0.0f || y >= height){
+			int pOffset = nParticles * (DIM_OF_STATE + 1);
+			int pIndex = i * pOffset;
+			for(int j = svIndex + DIM_OF_STATE; j < vEnd; j++){
+				stateVectors[j - DIM_OF_STATE] = stateVectors[j];
+			}
+			for(int k = pIndex + pOffset; k < pEnd; k++){
+				particles[k - pOffset] = particles[k];
+			}
+			killed++;
+		} else {
+			i++;
+		}
+	}
+	return killed;
 }
 
 //Copy statevectors corresponding to frame index from source to dest
