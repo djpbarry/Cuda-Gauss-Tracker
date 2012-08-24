@@ -49,6 +49,7 @@ float* _mStateVectors;
 float* _mParticles;
 float* _mStateVectorsMemory;
 float* _mMaxLogLikelihood;
+int* _counts; // number of state vectors in each frame
 int _mFrameOfInitialization = 0;
 int _mInitRWIterations = 1;
 float _mWavelengthInNm = 650.0f;
@@ -67,15 +68,60 @@ normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 Matrix _mOriginalImage;
-char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim1";
+char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim7";
 
-/*int main(int argc, char* argv[]){
+int main(int argc, char* argv[]){
 	int frames = initTracker(".tif");
 	runTracker();
 	printf("\n\n");
 
+	Matrix output;
+	output.width = _mWidth*_scalefactor;
+	output.stride=output.width;
+	output.height = _mHeight*_scalefactor;
+	output.size = output.width * output.height;
+	output.elements = (float*)malloc(sizeof(float) * output.size);
+
+	for(int frameIndex = 0; frameIndex < frames; frameIndex++){
+		int stateVectorFrameIndex = frameIndex * MAX_DETECTIONS * DIM_OF_STATE;
+		for(int p=0; p<output.width*output.height; p++){
+			output.elements[p] = 0.0f;
+		}
+		Mat cudasaveframe(_mHeight*_scalefactor, _mWidth*_scalefactor,CV_32F);
+		for(int i=0; i < _counts[frameIndex]; i++){
+			int stateVectorIndex = stateVectorFrameIndex + i * DIM_OF_STATE;
+			addFeaturePointToImage(output.elements, _mStateVectorsMemory[stateVectorIndex] * _scalefactor,
+				_mStateVectorsMemory[stateVectorIndex + 1] * _scalefactor,
+				_mStateVectorsMemory[stateVectorIndex + 6], output.width, output.height);
+			/*for(int j=0; j<_mNbParticles; j++){
+				int particleIndex = (i * _mNbParticles + j) * (DIM_OF_STATE + 1);
+				int x = (int)boost::math::round<float>(_mParticles[particleIndex] * _scalefactor);
+				int y = (int)boost::math::round<float>(_mParticles[particleIndex + 1] * _scalefactor);
+				addFeaturePointToImage(output.elements, x, y, _mParticles[particleIndex + DIM_OF_STATE], output.width, output.height);
+				if(x > 0 && x < output.width && y > 0 && y < output.height){
+					int index = x + y * output.stride;
+					output.elements[index] += 1.0f;
+				}
+			}*/
+		}
+		copyFromMatrix(cudasaveframe, output, 0, 1.0f);
+		for(int j = 0; j < frameIndex; j++){
+			int stateVectorFrameIndex = j * MAX_DETECTIONS * DIM_OF_STATE;
+			for(int k = 0; k < _counts[j]; k++){
+				int stateVectorIndex = stateVectorFrameIndex + k * DIM_OF_STATE;
+				Point centre(_mStateVectorsMemory[stateVectorIndex] * _scalefactor, _mStateVectorsMemory[stateVectorIndex + 1] * _scalefactor);
+				circle(cudasaveframe, centre, FIT_RADIUS, 255);
+			}
+		}
+		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
+		string savefilename(folder);
+		savefilename.append("/CudaOutput/");
+		savefilename.append(boost::lexical_cast<string>(frameIndex));
+		savefilename.append(".tif");
+		imwrite(savefilename, cudasaveframe);
+	}
 	return 0;
-}*/
+}
 
 int initTracker(char* ext){
 	printf("Start Tracker...\n\nFolder: %s\n", folder);
@@ -125,6 +171,7 @@ void setup() {
     _mStateVectorsMemory = (float*)malloc(sizeof(float) * _mNFrames * MAX_DETECTIONS * DIM_OF_STATE);
 	_mStateVectors = (float*)malloc(sizeof(float) * MAX_DETECTIONS * DIM_OF_STATE);
     _mMaxLogLikelihood = (float*)malloc(sizeof(float) * _mNFrames);
+	_counts = (int*)malloc(sizeof(int) * _mNFrames);
     return;
 }
 
@@ -139,7 +186,7 @@ void runTracker(){
 	candidates.size = candidates.width * candidates.height;
 	candidates.elements = (float*)malloc(sizeof(float) * candidates.size);
 	_currentLength = 0;
-	_currentLength = maxFinder(_mOriginalImage, candidates, 1.0f, false, _currentLength, 0, 0);
+	_currentLength = maxFinder(_mOriginalImage, candidates, 200.0f, false, _currentLength, 0, 0);
 	for (int i = 0; i < _currentLength; i++) {
 		float x = candidates.elements[i];
 		float y = candidates.elements[i + candidates.stride];
@@ -522,12 +569,6 @@ float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage,
 }
 
 void runParticleFilter(Matrix aOriginalImage) {
-	Matrix output;
-	output.width = _mWidth*_scalefactor;
-	output.stride=output.width;
-	output.height = _mHeight*_scalefactor;
-	output.size = output.width * output.height;
-	output.elements = (float*)malloc(sizeof(float) * output.size);
 	printf("\nRunning Particle Filter ... %d%%", 0);
 	Matrix frame;
 	frame.width = aOriginalImage.width;
@@ -548,36 +589,6 @@ void runParticleFilter(Matrix aOriginalImage) {
 		for (int vRepStep = 0; vRepStep < _mRepSteps; vRepStep++) {
 			if (vRepStep == 0) {
 				drawNewParticles(_mParticles, _spatialRes); //draw the particles at the appropriate position.
-							_spatialRes /= _scalefactor;
-			//update the view
-			for(int p=0; p<output.width*output.height; p++){
-				output.elements[p] = 0.0f;
-			}
-			Mat cudasaveframe(_mHeight*_scalefactor, _mWidth*_scalefactor,CV_32F);
-			for(int i=0; i<_currentLength; i++){
-				int stateVectorIndex = i * DIM_OF_STATE;
-				/*addFeaturePointToImage(output.elements, _mStateVectors[stateVectorIndex] * _scalefactor,
-					_mStateVectors[stateVectorIndex + 1] * _scalefactor,
-					_mStateVectors[stateVectorIndex + 6], output.width, output.height);*/
-				for(int j=0; j<_mNbParticles; j++){
-					int particleIndex = (i * _mNbParticles + j) * (DIM_OF_STATE + 1);
-					int x = (int)boost::math::round<float>(_mParticles[particleIndex] * _scalefactor);
-					int y = (int)boost::math::round<float>(_mParticles[particleIndex + 1] * _scalefactor);
-					addFeaturePointToImage(output.elements, x, y, _mParticles[particleIndex + DIM_OF_STATE], output.width, output.height);
-					/*if(x > 0 && x < output.width && y > 0 && y < output.height){
-						int index = x + y * output.stride;
-						output.elements[index] += 1.0f;
-					}*/
-				}
-			}
-			copyFromMatrix(cudasaveframe, output, 0, 65535.0f/_mNbParticles);
-			cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
-			string savefilename(folder);
-			savefilename.append("/CudaOutput/");
-			savefilename.append(boost::lexical_cast<string>(vFrameIndex));
-			savefilename.append(".tif");
-			imwrite(savefilename, cudasaveframe);
-			_spatialRes *= _scalefactor;
 			} else {
 				scaleSigmaOfRW(1.0f / powf(3.0f, (float)vRepStep));//(1f - (float)vRepStep / (float)mRepSteps);
 				DrawParticlesWithRW(_mParticles);
@@ -607,6 +618,7 @@ void runParticleFilter(Matrix aOriginalImage) {
 		}
 		//save the new states
 		copyStateVector(_mStateVectorsMemory, _mStateVectors, vFrameIndex);
+		_counts[vFrameIndex] = _currentLength;
     }
 	free(frame.elements);
 }

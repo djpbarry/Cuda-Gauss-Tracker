@@ -2,8 +2,8 @@
 #define _DEFS_
 
 #define FILENAME_LENGTH 10
-#define N_MAX 3
-#define MAX_DETECTIONS 5400
+#define N_MAX 5
+#define MAX_DETECTIONS 1000
 #define FIT_RADIUS 3
 #define FIT_SIZE 7
 #define SEARCH_RADIUS 1

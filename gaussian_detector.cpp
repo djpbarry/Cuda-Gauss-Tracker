@@ -30,13 +30,13 @@ float _sigmaEst, _2sig2;
 float _maxThresh = 50.0f;
 float _numAp = 1.4f;
 float _lambda = 561.0f;
-extern "C" int _scalefactor = 4;
+extern "C" int _scalefactor = 1;
 char* _ext = ".tif";
 
-int main(int argc, char* argv[]){
+/*int main(int argc, char* argv[]){
 	runDetector();
 	return 0;
-}
+}*/
 
 void runDetector()
 {
@@ -55,7 +55,7 @@ void runDetector()
 	_2sig2 = 2.0f * _sigmaEst * _sigmaEst;
 
 	printf("\n\nStart Detector...\n");
-	char* folder = "C:/Users/barry05/Desktop/2012.08.23  MEA Alex488-Phalloidin Alexa488-A36 Alexa561-A27/SuperRes Analysis/Capture 1/DiffSequence";
+	char* folder = "C:/Users/barry05/Desktop/2012.08.23  MEA Alex488-Phalloidin Alexa488-A36 Alexa561-A27/SuperRes Analysis/Capture 11 - Small Crop/DiffSequence";
 	printf("\nFolder: %s\n", folder);
 	
 	vector<path> v = getFiles(folder);
@@ -142,7 +142,7 @@ void runDetector()
 			}*/
 			outcount++;
 		}
-		copyFromMatrix(cudasaveframe, cudaoutput, 0, 65535.0f / 255.0f);
+		copyFromMatrix(cudasaveframe, cudaoutput, 0, 1.0f);
 		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
 		printf("\rWriting Output ... %d", z);
 		string savefilename(folder);
