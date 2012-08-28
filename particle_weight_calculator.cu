@@ -1,7 +1,6 @@
 
 #include "stdafx.h"
 #include <matrix.h>
-#include <math.h>
 #include <float.h>
 #include <defs.h>
 #include <cuda_utils.h>
@@ -26,6 +25,7 @@ extern "C" float _mSigmaPSFxy, _spatialRes;
 * @param nbParticles the number of particles for each object
 */
 extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int currentLength, int nbParticles){
+	if (!(currentLength > 0)) return;
 	float vVarianceXYinPx = _mSigmaPSFxy * _mSigmaPSFxy / (_spatialRes * _spatialRes);
 	cudaSetDevice(0);
 	checkCudaError();
@@ -125,19 +125,27 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 }
 
 __global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float* logLikelihoods, float vVarianceXYinPx){
+	int radius = 2 * FIT_RADIUS;
 	int particleIndex =  blockIdx.x * blockDim.x + threadIdx.x;
 	int particleOffset  = particleIndex * (DIM_OF_STATE + 1);
 	float x = mParticles[particleOffset];
 	float y = mParticles[particleOffset + 1];
 	float mag = mParticles[particleOffset + 6];
+	int startX = (int)rintf(x - radius);
+	int endX = (int)rintf(x + radius);
+	int startY = (int)rintf(y - radius);
+	int endY = (int)rintf(y + radius);
+	if(startX < 0) startX = 0;
+	if(endX > observation.width - 1) endX = observation.width - 1;
+	if(startY < 0) startY = 0;
+	if(endY > observation.height - 1) endY = observation.height - 1;
 
 	float vLogLikelihood = 0.0f;
-	for (int vY = 0; vY < observation.height; vY++) {
+	for (int vY = startY; vY <= endY; vY++) {
 		int woffset = vY * observation.width;
-		for (int vX = 0; vX < observation.width; vX++) {
+		for (int vX = startX; vX <= endX; vX++) {
 			float a = 1.0f + (mag * expf(-(powf(vX - x + .5f, 2.0f) + powf(vY - y + .5f, 2.0f)) / (2.0f * vVarianceXYinPx)));
-			float b = 1.0f + observation.elements[woffset + vX];
-			vLogLikelihood += -a + b * log(a);
+			vLogLikelihood += -a + (1.0f + observation.elements[woffset + vX]) * log(a);
         }
     }
 	logLikelihoods[particleIndex] = vLogLikelihood;
