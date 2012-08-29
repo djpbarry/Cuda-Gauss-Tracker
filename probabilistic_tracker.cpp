@@ -12,11 +12,11 @@
 using namespace boost;
 
 extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int currentLength, int nbParticles);
-int initTracker(char* ext, int* dims);
+int initTracker(char* ext, int* dims, char* folder);
 void runTracker();
-void initParticleFilter(Matrix aInitStack, int aInitParticleFilterIterations, int aFrameOfInit);
+void initParticleFilter(Matrix aInitStack, int aInitParticleFilterIterations);
 void createParticles(float* aStateVectors, float* aParticles);
-void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFrameOfInit);
+void filterTheInitialization(Matrix aImageStack, int aInitPFIterations);
 void scaleSigmaOfRW(float vScaler);
 void DrawParticlesWithRW(float* aParticles);
 void randomWalkProposal(float* aParticles, int offset);
@@ -42,22 +42,15 @@ extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool v
 
 extern "C" float _spatialRes;
 extern "C" int _scalefactor;
-int _mNFrames;
 float* _mStateVectors;
 float* _mParticles;
 float* _mStateVectorsMemory;
 float* _mMaxLogLikelihood;
 int* _counts; // number of state vectors in each frame
-int _mFrameOfInitialization = 0;
 int _mInitRWIterations = 1;
-float _mWavelengthInNm = 650.0f;
-float _mNA = 1.4f;
-extern "C" float _mSigmaPSFxy = (0.21f * _mWavelengthInNm / _mNA);
+extern "C" float _mSigmaPSFxy = (0.21f * WAVELENGTH / NA);
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-float _mBackground = 1.0f;
 float _mSigmaOfDynamics[] = {100.0f, 100.0f, 1.0f, 1.0f};
-bool _mDoResampling = true;
-bool _mDoPrecisionOptimization = true;
 int _currentLength;
 int _mNbParticles = 1500;
 int _mResamplingThreshold = _mNbParticles / 2;
@@ -66,9 +59,9 @@ normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 Matrix _mOriginalImage;
-char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim8";
 
 int main(int argc, char* argv[]){
+	char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim8";
 	string outputDir(folder);
 	outputDir.append("/CudaOutput");
 	if(!(exists(outputDir))){
@@ -78,7 +71,7 @@ int main(int argc, char* argv[]){
 	}
 	int dims[2];
 	clock_t start = clock();
-	int frames = initTracker(".tif", dims);
+	int frames = initTracker(".tif", dims, folder);
 	runTracker();
 	printf("\n\n");
 	output(dims, frames, outputDir);
@@ -86,7 +79,7 @@ int main(int argc, char* argv[]){
 	return 0;
 }
 
-int initTracker(char* ext, int* dims){
+int initTracker(char* ext, int* dims, char* folder){
 	printf("Start Tracker...\n\nFolder: %s\n", folder);
 	
 	//Load file list
@@ -120,11 +113,10 @@ int initTracker(char* ext, int* dims){
 			thisFrame++;
 		}
 	}
-	_mNFrames = _mOriginalImage.depth;
-    _mStateVectorsMemory = (float*)malloc(sizeof(float) * _mNFrames * MAX_DETECTIONS * DIM_OF_STATE);
+    _mStateVectorsMemory = (float*)malloc(sizeof(float) * _mOriginalImage.depth * MAX_DETECTIONS * DIM_OF_STATE);
 	_mStateVectors = (float*)malloc(sizeof(float) * MAX_DETECTIONS * DIM_OF_STATE);
-    _mMaxLogLikelihood = (float*)malloc(sizeof(float) * _mNFrames);
-	_counts = (int*)malloc(sizeof(int) * _mNFrames);
+    _mMaxLogLikelihood = (float*)malloc(sizeof(float) * _mOriginalImage.depth);
+	_counts = (int*)malloc(sizeof(int) * _mOriginalImage.depth);
 	return thisFrame;
 }
 
@@ -149,17 +141,17 @@ void runTracker(){
 	}
 	free(candidates.elements);
 	_mParticles = (float*)malloc(sizeof(float) * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1));
-	initParticleFilter(_mOriginalImage, _mInitRWIterations, _mFrameOfInitialization);
+	initParticleFilter(_mOriginalImage, _mInitRWIterations);
 	copyStateVector(_mStateVectorsMemory, _mStateVectors, 0);
 	runParticleFilter(_mOriginalImage);
 }
 
-void initParticleFilter(Matrix aInitStack, int aInitParticleFilterIterations, int aFrameOfInit) {
+void initParticleFilter(Matrix aInitStack, int aInitParticleFilterIterations) {
         // - set up state vector
         // - create particles
         // - filter the initialized values	
     createParticles(_mStateVectors, _mParticles);
-    filterTheInitialization(aInitStack, aInitParticleFilterIterations, aFrameOfInit);
+    filterTheInitialization(aInitStack, aInitParticleFilterIterations);
 	return;
 }
 
@@ -184,7 +176,7 @@ void createParticles(float* aStateVectors, float* aParticles){
 	return;
 }
 
-void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, int aFrameOfInit){
+void filterTheInitialization(Matrix aImageStack, int aInitPFIterations){
 	printf("\nInitialising...");
 	float vSigmaOfRWSave[DIM_OF_STATE];
     for (int vI = 0; vI < DIM_OF_STATE; vI++) {
@@ -435,7 +427,7 @@ void calculateLikelihoods(Matrix aObservationStack, bool* vBitmap, int aFrameInd
 }
 
 void generateIdealImage(float* particles, int offset, float* vIdealImage, int width, int height) {
-    addBackgroundToImage(vIdealImage, _mBackground, width, height);
+    addBackgroundToImage(vIdealImage, BACKGROUND, width, height);
     addFeaturePointToImage(vIdealImage, particles[offset], particles[offset + 1], particles[offset + 6], width, height);
     return;
 }
@@ -528,7 +520,7 @@ void runParticleFilter(Matrix aOriginalImage) {
 	frame.size = frame.width * frame.height;
 	frame.elements = (float*)malloc(sizeof(float) * frame.size);
 			
-	for (int vFrameIndex = _mFrameOfInitialization; vFrameIndex < aOriginalImage.depth; vFrameIndex++) {
+	for (int vFrameIndex = 0; vFrameIndex < aOriginalImage.depth; vFrameIndex++) {
 		printf("\rRunning Particle Filter ... %d%%", (vFrameIndex + 1) * 100 / aOriginalImage.depth);
 		matrixCopy(aOriginalImage, frame, vFrameIndex * frame.size);
 		// save a copy of the original sigma to restore it afterwards
@@ -551,15 +543,9 @@ void runParticleFilter(Matrix aOriginalImage) {
 
 			int killed = checkStateVectors(_mStateVectors, _mParticles, frame.width, frame.height, _currentLength, _mNbParticles);
 			_currentLength -= killed;
-
-			if (_mDoResampling) {
-				if (!resample(_mParticles)) {//further iterations are not necessary.
-	//						System.out.println("number of iterations needed at this frame: " + vRepStep);
-					break;
-				}
-			}
-			if (!_mDoPrecisionOptimization) {
-				break; //do not repeat the filter on the first frame
+			if (!resample(_mParticles)) {//further iterations are not necessary.
+//						System.out.println("number of iterations needed at this frame: " + vRepStep);
+				break;
 			}
 		}
 		//restore the sigma vector
@@ -599,8 +585,8 @@ void drawFromProposalDistribution(float* particles, float spatialRes, int partic
     particles[1 + particleIndex] = particles[1 + particleIndex] + particles[4 + particleIndex];
     particles[2 + particleIndex] = particles[2 + particleIndex] + particles[5 + particleIndex];
     particles[6 + particleIndex] = particles[6 + particleIndex] + var_nor() * _mSigmaOfDynamics[3];
-    if (particles[6 + particleIndex] < _mBackground + 1) {
-        particles[6 + particleIndex] = _mBackground + 1;
+    if (particles[6 + particleIndex] < BACKGROUND + 1) {
+        particles[6 + particleIndex] = BACKGROUND + 1;
     }
 }
 
