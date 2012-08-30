@@ -29,5 +29,6 @@
 #define WAVELENGTH 650.0f
 #define NA 1.4f
 #define BACKGROUND 1.0f
+#define TIF ".tif"
 
 #endif

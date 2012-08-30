@@ -12,9 +12,8 @@
 using namespace boost;
 
 extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int currentLength, int nbParticles);
-int initTracker(char* ext, int* dims, char* folder);
+int loadImages(char* ext, vector<path> v, char* folder, int numFiles);
 void runTracker();
-void initParticleFilter(Matrix aInitStack, int aInitParticleFilterIterations);
 void createParticles(float* aStateVectors, float* aParticles);
 void filterTheInitialization(Matrix aImageStack, int aInitPFIterations);
 void scaleSigmaOfRW(float vScaler);
@@ -71,26 +70,16 @@ int main(int argc, char* argv[]){
 	}
 	int dims[2];
 	clock_t start = clock();
-	int frames = initTracker(".tif", dims, folder);
-	runTracker();
-	printf("\n\n");
-	output(dims, frames, outputDir);
-	printf("Elapsed Time: %.3f s\n", ((float)(clock() - start))/1000.0f);
-	return 0;
-}
-
-int initTracker(char* ext, int* dims, char* folder){
 	printf("Start Tracker...\n\nFolder: %s\n", folder);
 	
 	//Load file list
 	vector<path> v = getFiles(folder);
 
 	//Count files with specified extension
-	int numFiles = countFiles(v, ext);
-	vector<path>::iterator v_iter;
+	int numFiles = countFiles(v, TIF);
 	
 	//Get dimensions of first image
-	getDims(v, ext, dims);
+	getDims(v, TIF, dims);
 
 	//Construct image volume
 	_mOriginalImage.width = dims[0];
@@ -100,7 +89,25 @@ int initTracker(char* ext, int* dims, char* folder){
 	_mOriginalImage.size = dims[0] * dims[1] * numFiles;
 	_mOriginalImage.elements = (float*)malloc(sizeof(float) * _mOriginalImage.size);
 
+	int frames = loadImages(TIF, v, folder, numFiles);
+
+	//Initialise memory spaces
+	_mParticles = (float*)malloc(sizeof(float) * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1));
+	_mStateVectorsMemory = (float*)malloc(sizeof(float) * _mOriginalImage.depth * MAX_DETECTIONS * DIM_OF_STATE);
+	_mStateVectors = (float*)malloc(sizeof(float) * MAX_DETECTIONS * DIM_OF_STATE);
+    _mMaxLogLikelihood = (float*)malloc(sizeof(float) * _mOriginalImage.depth);
+	_counts = (int*)malloc(sizeof(int) * _mOriginalImage.depth);
+
+	runTracker();
+	printf("\n\n");
+	output(dims, frames, outputDir);
+	printf("Elapsed Time: %.3f s\n", ((float)(clock() - start))/1000.0f);
+	return 0;
+}
+
+int loadImages(char* ext, vector<path> v, char* folder, int numFiles){
 	//Load images into volume
+	vector<path>::iterator v_iter;
 	printf("\nLoading Images ... %d%%", 0);
 	int thisFrame = 0;
 	Mat frame;
@@ -113,10 +120,6 @@ int initTracker(char* ext, int* dims, char* folder){
 			thisFrame++;
 		}
 	}
-    _mStateVectorsMemory = (float*)malloc(sizeof(float) * _mOriginalImage.depth * MAX_DETECTIONS * DIM_OF_STATE);
-	_mStateVectors = (float*)malloc(sizeof(float) * MAX_DETECTIONS * DIM_OF_STATE);
-    _mMaxLogLikelihood = (float*)malloc(sizeof(float) * _mOriginalImage.depth);
-	_counts = (int*)malloc(sizeof(int) * _mOriginalImage.depth);
 	return thisFrame;
 }
 
@@ -140,19 +143,10 @@ void runTracker(){
 		updateStateVector(firstState, i);
 	}
 	free(candidates.elements);
-	_mParticles = (float*)malloc(sizeof(float) * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1));
-	initParticleFilter(_mOriginalImage, _mInitRWIterations);
+	createParticles(_mStateVectors, _mParticles);
+    filterTheInitialization(_mOriginalImage, _mInitRWIterations);
 	copyStateVector(_mStateVectorsMemory, _mStateVectors, 0);
 	runParticleFilter(_mOriginalImage);
-}
-
-void initParticleFilter(Matrix aInitStack, int aInitParticleFilterIterations) {
-        // - set up state vector
-        // - create particles
-        // - filter the initialized values	
-    createParticles(_mStateVectors, _mParticles);
-    filterTheInitialization(aInitStack, aInitParticleFilterIterations);
-	return;
 }
 
 void createParticles(float* aStateVectors, float* aParticles){
