@@ -33,10 +33,10 @@ float _lambda = 561.0f;
 extern "C" int _scalefactor = 1;
 char* _ext = ".tif";
 
-/*int main(int argc, char* argv[]){
+int main(int argc, char* argv[]){
 	runDetector();
 	return 0;
-}*/
+}
 
 void runDetector()
 {
@@ -55,8 +55,16 @@ void runDetector()
 	_2sig2 = 2.0f * _sigmaEst * _sigmaEst;
 
 	printf("\n\nStart Detector...\n");
-	char* folder = "C:/Users/barry05/Desktop/2012.08.23  MEA Alex488-Phalloidin Alexa488-A36 Alexa561-A27/SuperRes Analysis/Capture 11 - Small Crop/DiffSequence";
+	char* folder = "C:/Users/barry05/Desktop/SupreRes Test Sets/LifeActBleb";
 	printf("\nFolder: %s\n", folder);
+
+	string outputDir(folder);
+	outputDir.append("/CudaOutput");
+	if(!(exists(outputDir))){
+		if(!(create_directory(outputDir))){
+			return;
+		}
+	}
 	
 	vector<path> v = getFiles(folder);
 	int frames = countFiles(v, _ext);
@@ -243,6 +251,7 @@ extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool v
 			}
 		}
 	}
+
 	return count;
 }
 

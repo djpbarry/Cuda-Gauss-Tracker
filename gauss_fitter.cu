@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <cuda_utils.h>
+#include <float.h>
 #include "cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -212,7 +213,8 @@ __device__ int initialiseFitting(charMatrix image, int index, float *xe, float *
 		doMultiFit(image, index, n, xe, ye, mag, r);
 	}
 	int best = -1;
-	float max = 0.0f;
+	//float max = 0.0f;
+	float max = -FLT_MAX;
 	for(int i=0; i<N_MAX; i++){
 		if(r[i] > max){
 			max = r[i];

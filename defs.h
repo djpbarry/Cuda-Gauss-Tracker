@@ -11,7 +11,7 @@
 #define ITERATIONS 100
 #define XY_STEP_SIZE 0.1f
 #define MAG_STEP_SIZE 10.0f
-#define BLOCK_SIZE_X 256
+#define BLOCK_SIZE_X 128
 #define BLOCK_SIZE_Y 1
 #define HEADER 3
 #define FOOTER (3*N_MAX + 1)

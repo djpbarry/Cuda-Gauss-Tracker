@@ -47,7 +47,7 @@ float* _mStateVectorsMemory;
 float* _mMaxLogLikelihood;
 int* _counts; // number of state vectors in each frame
 int _mInitRWIterations = 1;
-extern "C" float _mSigmaPSFxy = (0.21f * WAVELENGTH / NA);
+extern "C" float _mSigmaPSFxy = (0.305f * WAVELENGTH / NA);
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 float _mSigmaOfDynamics[] = {100.0f, 100.0f, 1.0f, 1.0f};
 int _currentLength;
@@ -59,7 +59,7 @@ mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 Matrix _mOriginalImage;
 
-int main(int argc, char* argv[]){
+/*int main(int argc, char* argv[]){
 	char* folder = "C:/Users/barry05/Desktop/Tracking Test Sequences/TiffSim8";
 	string outputDir(folder);
 	outputDir.append("/CudaOutput");
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]){
 	printf("Elapsed Time: %.3f s\n", ((float)(clock() - start))/1000.0f);
 	return 0;
 }
-
+*/
 int loadImages(char* ext, vector<path> v, char* folder, int numFiles){
 	//Load images into volume
 	vector<path>::iterator v_iter;
