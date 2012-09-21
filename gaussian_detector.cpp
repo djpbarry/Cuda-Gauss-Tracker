@@ -19,6 +19,7 @@ extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool v
 float testEvaluate(float x0, float y0, float max, int x, int y, float sig2);
 float testGetRSquared(int x0, float srs, Matrix M);
 bool testDraw2DGaussian(Matrix image, float mag, float x0, float y0);
+bool drawSquare(Matrix image, float x01, float y01);
 void testDoMultiFit(Matrix M, int x0, int N, float *xe, float *ye, float *mag, float *r);
 float testSumMultiResiduals(int x0, float *xe, float *ye, float *mag, Matrix M, float xinc, float yinc, float minc, int index, int N);
 float testMultiEvaluate(float x0, float y0, float mag, int x, int y);
@@ -55,7 +56,7 @@ void runDetector()
 	_2sig2 = 2.0f * _sigmaEst * _sigmaEst;
 
 	printf("\n\nStart Detector...\n");
-	char* folder = "C:/Users/barry05/Desktop/SupreRes Test Sets/LifeActBleb";
+	char* folder = "C:/Users/barry05/Desktop/Test Data Sets/CUDA Gauss Localiser Tests/Test26";
 	printf("\nFolder: %s\n", folder);
 
 	string outputDir(folder);
@@ -131,8 +132,10 @@ void runDetector()
 			if(best>=0){
 				for(int i=0; i<=best; i++){
 					//if(candidates.elements[outcount + candidates.stride * (MAG_ROW + i)] > _maxThresh){
-						testDraw2DGaussian(cudaoutput, candidates.elements[outcount + candidates.stride * (MAG_ROW + i)],
+						/*testDraw2DGaussian(cudaoutput, candidates.elements[outcount + candidates.stride * (MAG_ROW + i)],
 						x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
+						y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);*/
+					drawSquare(cudaoutput, x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
 						y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);
 					//}
 				}
@@ -318,6 +321,39 @@ bool testDraw2DGaussian(Matrix image, float mag, float x01, float y01) {
         }
         return true;
     }
+
+bool drawSquare(Matrix image, float x01, float y01) {
+    int x, y;
+	float x0 = x01 * _scalefactor;
+	float y0 = y01 * _scalefactor;
+	int drawRadius = FIT_RADIUS + 2;
+    for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {
+		y = (int) floor(y0 - drawRadius);
+		if(x >= 0 && x < image.width && y >= 0 && y < image.height){
+			int index = x + y * image.stride;
+			image.elements[index] = 255.0f;
+		}
+		y = (int) floor(y0 + drawRadius);
+		if(x >= 0 && x < image.width && y >= 0 && y < image.height){
+			int index = x + y * image.stride;
+			image.elements[index] = 255.0f;
+		}
+	}
+
+	for (y = (int) floor(y0 - drawRadius); y <= y0 + drawRadius; y++) {
+		x = (int) floor(x0 - drawRadius);
+		if(x >= 0 && x < image.width && y >= 0 && y < image.height){
+			int index = x + y * image.stride;
+			image.elements[index] = 255.0f;
+		}
+		x = (int) floor(x0 + drawRadius);
+		if(x >= 0 && x < image.width && y >= 0 && y < image.height){
+			int index = x + y * image.stride;
+			image.elements[index] = 255.0f;
+		}
+	}
+    return true;
+}
 
 int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag){
 	testCentreOfMass(&xe[0], &ye[0], index, image);
