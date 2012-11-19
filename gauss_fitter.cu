@@ -26,7 +26,7 @@ __device__ float sumMultiResiduals(int x0, float *xe, float *ye, float *mag, cha
 
 __device__ float multiEvaluate(float x0, float y0, float mag, int x, int y);
 
-__device__ int initialiseFitting(charMatrix image, int index, float *xe, float *ye, float *mag);
+__device__ int initialiseFitting(charMatrix image, int index, float *xe, float *ye, float *mag, float *r);
 
  __device__ float getRSquared(int x0, float srs, charMatrix M) {
 	int y0 = FIT_RADIUS;
@@ -169,8 +169,9 @@ __global__ void GaussFitterKernel(Matrix A, float sigEst, int reps)
 		float xe[N_MAX * N_MAX];
 		float ye[N_MAX * N_MAX];
 		float mag[N_MAX * N_MAX];
+		float r[N_MAX];
 		int xRegionCentre = threadIdx.x * FIT_SIZE + FIT_RADIUS;
-		int best = initialiseFitting(As, xRegionCentre, xe, ye, mag);
+		int best = initialiseFitting(As, xRegionCentre, xe, ye, mag, r);
 		A.elements[index + A.stride * BEST_ROW] = best;
 		for(int j=0; j<=best; j++){
 			A.elements[index + A.stride * (XE_ROW + j)] = xe[N_MAX * best + j]+blockOffset;
@@ -181,11 +182,10 @@ __global__ void GaussFitterKernel(Matrix A, float sigEst, int reps)
 	}
 }
 
-__device__ int initialiseFitting(charMatrix image, int index, float *xe, float *ye, float *mag){
+__device__ int initialiseFitting(charMatrix image, int index, float *xe, float *ye, float *mag, float *r){
 	centreOfMass(&xe[0], &ye[0], index, image);
 	//mag[0] = image.elements[index + (FIT_RADIUS + HEADER) * image.stride];
 	mag[0] = image.elements[index + FIT_RADIUS * image.stride];
-	float r[N_MAX];
 	doMultiFit(image, index, 0, xe, ye, mag, r);
 	for(int n=1; n<N_MAX; n++){
 		int noffset = n * N_MAX;

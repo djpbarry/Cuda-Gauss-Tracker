@@ -3,15 +3,15 @@
 
 #define FILENAME_LENGTH 10
 #define N_MAX 1
-#define MAX_DETECTIONS 5400
-#define FIT_RADIUS 3
-#define FIT_SIZE 7
+#define MAX_DETECTIONS 200
+#define FIT_RADIUS 5
+#define FIT_SIZE 11
 #define SEARCH_RADIUS 1
 #define STEP_TOL 2000
 #define ITERATIONS 100
 #define XY_STEP_SIZE 0.1f
 #define MAG_STEP_SIZE 10.0f
-#define BLOCK_SIZE_X 128
+#define BLOCK_SIZE_X 64
 #define BLOCK_SIZE_Y 1
 #define HEADER 3
 #define FOOTER (3*N_MAX + 1)

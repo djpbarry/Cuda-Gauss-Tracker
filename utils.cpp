@@ -24,6 +24,7 @@ extern void copyToMatrix(Mat M, Matrix A, int index);
 extern void copyFromMatrix(Mat M, Matrix A, int index, float scale);
 extern void getDims(vector<path> v, const char* ext, int* dims);
 extern void matrixCopy(Matrix source, Matrix dest, int start);
+extern void saveMatrix(Matrix source, int x, int y, int radius);
 
 extern  int countFiles(vector<path> v, char* ext){
 	vector<path>::iterator v_iter;
@@ -151,6 +152,20 @@ extern  void matrixCopy(Matrix source, Matrix dest, int start){
 	for(int i=0; i < dest.size; i++){
 		dest.elements[i] = source.elements[i + start];
 	}
+}
+
+extern void saveMatrix(Matrix source, int x, int y, int radius){
+	FILE *fp;
+	fp = fopen("C:/users/barry05/Desktop/matrix.txt", "w");
+	for(int m=y-FIT_RADIUS; m <= y+FIT_RADIUS; m++){
+		int offset = m * source.stride;
+		for(int n=x-FIT_RADIUS; n <= x+FIT_RADIUS; n++){
+			int bx = n - x + FIT_RADIUS;
+			fprintf(fp, "%.0f ", source.elements[offset + n]);
+		}
+		fprintf(fp, "\n");
+	}
+	fclose(fp);
 }
 
 #endif
