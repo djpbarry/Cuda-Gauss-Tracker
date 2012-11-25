@@ -8,6 +8,7 @@
 #include <utils.h>
 #include <iterator>
 #include <vector>
+#include <math.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/math/constants/constants.hpp>
 
@@ -36,6 +37,7 @@ float _numAp = 1.4f;
 float _lambda = 561.0f;
 extern "C" int _scalefactor = 1;
 char* _ext = ".tif";
+bool _lowRangeWarning = true, _highRangeWarning = false;
 
 int main(int argc, char* argv[]){
 	runDetector();
@@ -60,11 +62,14 @@ void runDetector()
 	_2sig2 = 2.0f * _sig2;
 
 	printf("\n\nStart Detector...\n");
-	char* folder = "C:/Users/barry05/Desktop/Photon Counting Test/SuperResAnalysis/Capture 7";
+	char* folder = "C:/Users/barry05/Desktop/2012.11.20 Photon Counting Test/Power_10_Exp_100_II (Aligned)/Diff Sequence";
 	printf("\nFolder: %s\n", folder);
 
 	string outputDir(folder);
-	outputDir.append("/CudaOutput");
+	outputDir.append("/CudaOutput_NMAX");
+	outputDir.append(boost::lexical_cast<string>(N_MAX));
+	outputDir.append("_maxThresh");
+	outputDir.append(boost::lexical_cast<string>(_maxThresh));
 	if(!(exists(outputDir))){
 		if(!(create_directory(outputDir))){
 			return;
@@ -75,111 +80,110 @@ void runDetector()
 	int frames = countFiles(v, _ext);
 	vector<path>::iterator v_iter;
 
+	v_iter = v.begin();
+
+	float reqMem = ((float)FIT_SIZE) * MAX_DETECTIONS * frames * (FIT_SIZE + DATA_ROWS) * sizeof(float);
+
+	int numLoops = reqMem / MAX_MEMORY;
+	if (numLoops * MAX_MEMORY < reqMem) numLoops++;
+	int frameDiv = (int)(ceilf(((float)frames)/numLoops));
+
+	int totalFrames = frames;
+	frames = 0;
+	int outFrames = 0;
+
 	// Storage for regions containing candidate particles
 	Matrix candidates;
-
 	// Width of each region set to one quarter warp (assuming FIT_RADIUS = 3)
-	candidates.width = FIT_SIZE * MAX_DETECTIONS * frames;
+	candidates.width = FIT_SIZE * MAX_DETECTIONS * frameDiv;
 	candidates.stride = candidates.width;
 	candidates.height = FIT_SIZE + DATA_ROWS;
 	candidates.size = candidates.width * candidates.height;
 	candidates.elements = (float*)malloc(sizeof(float) * candidates.size);
 
-	// Read one image at a time and find candidate particles in each
-	printf("\nFinding Maxima ... %d", 0); 
-	frames = 0;
-	int count = 0;
 	Mat frame;
-	for(v_iter = v.begin(); v_iter != v.end(); v_iter++){
-		string ext_s = ((*v_iter).extension()).string();
-		if((strcmp(ext_s.c_str(), _ext) == 0)) {
-			printf("\rFinding Maxima ... %d", frames);
-			frame = imread((*v_iter).string(), -1);
-			count = findParticles(frame, candidates, count, frames);
-			frames++;
-		}
-	}
-	int width = frame.cols;
-	int height = frame.rows;
-	int outcount = 0;
-	printf("\n\n-------------------------\n\nGPU Gaussian Fitting");
-	GaussFitter(candidates, count, _sigmaEst, _maxThresh);
-	clock_t totaltime = 0;
-	printf("\n-------------------------\n\nWriting Output ... %d", 0);
-	int bad_fits=0;
-	float meanprec = 0.0f;
-	for(int z=0; z<frames; z++){
-		Matrix cudaoutput;
-		cudaoutput.width = width*_scalefactor;
-		cudaoutput.stride=cudaoutput.width;
-		cudaoutput.height = height*_scalefactor;
-		cudaoutput.size = cudaoutput.width * cudaoutput.height;
-		cudaoutput.elements = (float*)malloc(sizeof(float) * cudaoutput.size);
-		for(int p=0; p<cudaoutput.width*cudaoutput.height; p++){
-			cudaoutput.elements[p] = 0.0f;
-		}
-		Mat cudasaveframe(height*_scalefactor,width*_scalefactor,CV_32F);
-/*		Matrix testoutput;
-		testoutput.width = width*_scalefactor;
-		testoutput.stride=testoutput.width;
-		testoutput.height = height*_scalefactor;
-		testoutput.size = cudaoutput.width * cudaoutput.height;
-		testoutput.elements = (float*)malloc(sizeof(float) * testoutput.size);
-		for(int p=0; p<width*height*_scalefactor*_scalefactor; p++){
-			testoutput.elements[p] = 0.0f;
-		}
-		Mat testsaveframe(height*_scalefactor,width*_scalefactor,CV_32F);*/
-		while(round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount<count){
-			int x = round(candidates.elements[outcount + candidates.stride * X_ROW]);
-			int y = round(candidates.elements[outcount + candidates.stride * Y_ROW]);
-			int best = round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
-			int xRegionCentre = outcount*FIT_SIZE+FIT_RADIUS;
-			int yRegionCentre = FIT_RADIUS+HEADER;
-			float prec = getPrecision(candidates, outcount);
-			meanprec += prec;
-			if(best>=0){
-				for(int i=0; i<=best; i++){
-					int ma = MAG_ROW;
-					//if(candidates.elements[outcount + candidates.stride * (MAG_ROW + i)] > _maxThresh){
-						/*testDraw2DGaussian(cudaoutput, candidates.elements[outcount + candidates.stride * (MAG_ROW + i)],
-						x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
-						y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);*/
-						testDraw2DGaussian(cudaoutput, x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
-						y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre, prec);
-					/*drawSquare(cudaoutput, x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
-						y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);*/
-					//}
-				}
-			}else{
-				bad_fits++;
+	for(int loopIndex=0; loopIndex < numLoops; loopIndex++){
+		printf("\n\n-------------------------\n\nLOOP %d OF %d\n\n-------------------------\n\n", loopIndex+1,numLoops);
+
+		// Read one image at a time and find candidate particles in each
+		printf("\nFinding Maxima ... %d", 0);
+		int count = 0;
+		for(; frames < (loopIndex + 1) * frameDiv && v_iter != v.end(); v_iter++){
+			string ext_s = ((*v_iter).extension()).string();
+			if((strcmp(ext_s.c_str(), _ext) == 0)) {
+				printf("\rFinding Maxima ... %d", frames);
+				frame = imread((*v_iter).string(), -1);
+				count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv));
+				frames++;
 			}
-			/*float *xe = (float*)malloc(sizeof(float) * N_MAX * N_MAX);
-			float *ye = (float*)malloc(sizeof(float) * N_MAX * N_MAX);
-			float *mag = (float*)malloc(sizeof(float) * N_MAX * N_MAX);
-			clock_t start = clock();
-			best = testInitialiseFitting(candidates, xRegionCentre, N_MAX, xe, ye, mag);
-			totaltime += clock() - start;
-			if(best>=0){
-				for(int i=0; i<=best; i++){
-					testDraw2DGaussian(testoutput, mag[best * N_MAX + i], x + xe[best * N_MAX + i] - xRegionCentre, y + ye[best * N_MAX + i] - yRegionCentre);
-				}
-			}*/
-			outcount++;
 		}
-		copyFromMatrix(cudasaveframe, cudaoutput, 0, 65536.0f);
-		cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
-		printf("\rWriting Output ... %d", z);
-		string savefilename(folder);
-		savefilename.append("/CudaOutput/");
-		savefilename.append(boost::lexical_cast<string>(z));
-		savefilename.append(PNG);
-		imwrite(savefilename, cudasaveframe);
-		/*copyFromMatrix(testsaveframe, testoutput);
-		imwrite(folder + "TestOutput\\" + savefilename, testsaveframe);*/
-		free(cudaoutput.elements);
+		int width = frame.cols;
+		int height = frame.rows;
+		int outcount = 0;
+		printf("\n\n-------------------------\n\nGPU Gaussian Fitting");
+		if(_lowRangeWarning){
+			printf("\n\nWarning: GPU fitting may be unreliable due to small range of pixel values.\n\n");
+		} else if (_highRangeWarning){
+			printf("\n\nWarning: GPU fitting may be unreliable due to high range of pixel values.\n\n");
+		}
+		if(count > 0) GaussFitter(candidates, count, _sigmaEst, _maxThresh);
+		clock_t totaltime = 0;
+		printf("\n-------------------------\n\nWriting Output ... %d", 0);
+		//float meanprec = 0.0f;
+		for(int z=0; z<frameDiv; z++){
+			Matrix cudaoutput;
+			cudaoutput.width = width*_scalefactor;
+			cudaoutput.stride=cudaoutput.width;
+			cudaoutput.height = height*_scalefactor;
+			cudaoutput.size = cudaoutput.width * cudaoutput.height;
+			cudaoutput.elements = (float*)malloc(sizeof(float) * cudaoutput.size);
+			for(int p=0; p<cudaoutput.width*cudaoutput.height; p++){
+				cudaoutput.elements[p] = 0.0f;
+			}
+			Mat cudasaveframe(height*_scalefactor,width*_scalefactor,CV_32F);
+			while(round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount<count){
+				int x = round(candidates.elements[outcount + candidates.stride * X_ROW]);
+				int y = round(candidates.elements[outcount + candidates.stride * Y_ROW]);
+				int best = round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
+				int xRegionCentre = outcount*FIT_SIZE+FIT_RADIUS;
+				int yRegionCentre = FIT_RADIUS+HEADER;
+				//float prec = getPrecision(candidates, outcount);
+				//if(prec > 0.0f){
+					//meanprec += prec;
+					if(best>=0){
+						for(int i=0; i<=best; i++){
+							float mag = candidates.elements[outcount + candidates.stride * (MAG_ROW + i)];
+							float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
+							float xe = candidates.elements[outcount + candidates.stride * (XE_ROW + i)];
+							float ye = candidates.elements[outcount + candidates.stride * (YE_ROW + i)];
+							//if(candidates.elements[outcount + candidates.stride * (MAG_ROW + i)] > _maxThresh){
+								/*testDraw2DGaussian(cudaoutput, candidates.elements[outcount + candidates.stride * (MAG_ROW + i)],
+								x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
+								y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);*/
+								testDraw2DGaussian(cudaoutput, x + xe - xRegionCentre, y + ye - yRegionCentre, _sigmaEst * 100.0f / (mag - bg));
+							/*drawSquare(cudaoutput, x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
+								y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);*/
+							//}
+						}
+					}
+				outcount++;
+			}
+			copyFromMatrix(cudasaveframe, cudaoutput, 0, 65536.0f);
+			cudasaveframe.convertTo(cudasaveframe,CV_16UC1);
+			printf("\rWriting Output ... %d", outFrames);
+			string savefilename(outputDir);
+			savefilename.append("/");
+			savefilename.append(boost::lexical_cast<string>(outFrames));
+			outFrames++;
+			savefilename.append(PNG);
+			imwrite(savefilename, cudasaveframe);
+			free(cudaoutput.elements);
+			cudasaveframe.release();
+		}
+		frame.release();
 	}
 	//printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
-	printf("\nBad Fits: %d\n\nMean Precision (nm): %f\n\nPress Any Key...", bad_fits, meanprec/count);
+	printf("\n\nPress Any Key...");
 	getchar();
 	getchar();
 	return;
@@ -196,7 +200,9 @@ int findParticles(Mat image, Matrix B, int count, int frame) {
 	A.size = A.width * A.height;
 	A.elements = (float*)malloc(sizeof(float) * A.size);
 	copyToMatrix(temp, A, 0);
-	return maxFinder(A, B, _maxThresh, true, count, 0, frame);
+	int thisCount = maxFinder(A, B, _maxThresh, true, count, 0, frame);
+	free(A.elements);
+	return thisCount;
 }
 
 float testEvaluate(float x0, float y0, float max, int x, int y, float sig2) {
@@ -232,14 +238,19 @@ extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool v
 	int koffset = k * A.width * A.height;
 	for(int y=FIT_RADIUS; y<A.height - FIT_RADIUS; y++){
 		for(int x=FIT_RADIUS; x<A.width - FIT_RADIUS; x++){
-			for (min = 255.0, max = 0.0, j = y - FIT_RADIUS; j <= y + FIT_RADIUS; j++) {
+			for (min = FLT_MAX, max = -FLT_MAX, j = y - FIT_RADIUS; j <= y + FIT_RADIUS; j++) {
 				int offset = koffset + j * A.stride;
 				for (i = x - FIT_RADIUS; i <= x + FIT_RADIUS; i++){
-					if ((A.elements[i + offset] > max) && !((x == i) && (y == j))) {
-						max = A.elements[i + offset];
-					}
-					if ((A.elements[i + offset] < min) && !((x == i) && (y == j))) {
-						min = A.elements[i + offset];
+					float pix = A.elements[i + offset];
+					_highRangeWarning = _highRangeWarning || (pix > 127.0f);
+					_lowRangeWarning = _lowRangeWarning && (pix < 1.0f);
+					if(!((x == i) && (y == j))){
+						if (pix > max) {
+							max = pix;
+						}
+						if (pix < min) {
+							min = pix;
+						}
 					}
 				}
 			}
@@ -259,7 +270,7 @@ extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool v
 					for(int n=x-FIT_RADIUS; n <= x+FIT_RADIUS; n++){
 						int bx = n - x + FIT_RADIUS;
 						sum += A.elements[aoffset + n];
-						B.elements[boffset + bx + bxoffset] = A.elements[aoffset + n] - min;
+						B.elements[boffset + bx + bxoffset] = A.elements[aoffset + n];
 					}
 				}
 				B.elements[count] = (float)x;
@@ -269,7 +280,6 @@ extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool v
 			}
 		}
 	}
-
 	return count;
 }
 
@@ -326,8 +336,9 @@ bool testDraw2DGaussian(Matrix image, float x01, float y01, float prec) {
         int x, y;
 		float x0 = x01 * _scalefactor;
 		float y0 = y01 * _scalefactor;
-		float prec2s = (prec * prec) / (_scalefactor * _scalefactor);
-		int drawRadius = FIT_RADIUS * 3;
+		//prec /= (_spatialRes/_scalefactor);
+		float prec2s = (prec * prec);
+		int drawRadius = prec * 3;
         for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {
             for (y = (int) floor(y0 - drawRadius); y <= y0 + drawRadius; y++) {
                 /* The current pixel value is added so as not to "overwrite" other
@@ -435,28 +446,20 @@ float getPrecision(Matrix candidates, int index){
 	int y0 = HEADER;
 	int x0 = index * FIT_SIZE;
 	int best = round(candidates.elements[index + candidates.stride * BEST_ROW]);
-	float noise = 0.0f;
+	float bg = 0.0f;
 	float N = 0.0f;
-	for (int j = y0; j < y0 + FIT_SIZE; j++){
-		int offset = candidates.stride * j;
-		for (int i = x0; i < x0 + FIT_SIZE; i++){
-			float residual = candidates.elements[offset + i];
-			//N += residual;
-			for(int k = 0; k <= best; k++){
-				float xe = candidates.elements[index + candidates.stride * (XE_ROW + k)];
-				float ye = candidates.elements[index + candidates.stride * (YE_ROW + k)];
-				float mag = candidates.elements[index + candidates.stride * (MAG_ROW + k)];
-				residual -= evaluate(xe, ye, mag, i - x0, j - y0, _sig2);
-			}
-			if(residual > 0.0f) noise += residual;
-		}
-	}
 	for(int k = 0; k <= best; k++){
+		bg += candidates.elements[index + candidates.stride * (BG_ROW + k)];
 		float mag = candidates.elements[index + candidates.stride * (MAG_ROW + k)];
 		N += mag * (2.0f * boost::math::constants::pi<float>() * _sig2);
 	}
-	noise /= (FIT_SIZE * FIT_SIZE);
-	float a = _sigmaEst * _spatialRes * _sigmaEst * _spatialRes + (_spatialRes * _spatialRes) / 12.0f;
-	float b = 4.0f * pow(boost::math::constants::pi<float>(), 0.5f) * pow(_sigmaEst * _spatialRes, 3.0f) * noise * noise;
-	return pow((a / N) + (b / (_spatialRes * N * N)), 0.5f);
+	if(N>0.0f){
+		bg /= (best + 1);
+		float s = 2.0 * _sigmaEst * _spatialRes;
+		float a = s * s + (_spatialRes * _spatialRes) / 12.0f;
+		float b = 8.0f * boost::math::constants::pi<float>() * pow(s, 4.0f) * bg * bg;
+		return pow((a / N) + (b / (_spatialRes * _spatialRes * N * N)), 0.5f);
+	} else {
+		return -1.0f;
+	}
 }
