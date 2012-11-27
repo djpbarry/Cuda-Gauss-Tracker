@@ -11,6 +11,7 @@
 #include <math.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/math/constants/constants.hpp>
+#include <boost/math/special_functions/round.hpp>
 
 using namespace cv;
 
@@ -23,19 +24,20 @@ float testEvaluate(float x0, float y0, float max, int x, int y, float sig2);
 float testGetRSquared(int x0, float srs, Matrix M);
 bool testDraw2DGaussian(Matrix image, float x0, float y0, float prec);
 bool drawSquare(Matrix image, float x01, float y01);
-void testDoMultiFit(Matrix M, int x0, int N, float *xe, float *ye, float *mag, float *r);
-float testSumMultiResiduals(int x0, float *xe, float *ye, float *mag, Matrix M, float xinc, float yinc, float minc, int index, int N);
+//void testDoMultiFit(Matrix M, int x0, int N, float *xe, float *ye, float *mag, float *r);
+//float testSumMultiResiduals(int x0, float *xe, float *ye, float *mag, Matrix M, float xinc, float yinc, float minc, int index, int N);
 float testMultiEvaluate(float x0, float y0, int x, int y, float sigma2);
-int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag);
-void testCentreOfMass(float *x, float *y, int index, Matrix image);
+//int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag);
+//void testCentreOfMass(float *x, float *y, int index, Matrix image);
 float getPrecision(Matrix candidates, int index);
 
 extern "C" float _spatialRes = 40.3125f;
-float _sigmaEst, _2sig2, _sig2;
-float _maxThresh = 50.0f;
-float _numAp = 1.4f;
-float _lambda = 561.0f;
+extern "C" float _numAp = 1.4f;
+extern "C" float _lambda = 561.0f;
+extern "C" float _sigmaEst = 0.305f * _lambda / (_numAp * _spatialRes);
 extern "C" int _scalefactor = 1;
+float _2sig2, _sig2;
+float _maxThresh = 50.0f;
 char* _ext = ".tif";
 bool _lowRangeWarning = true, _highRangeWarning = false;
 
@@ -56,6 +58,7 @@ void runDetector()
 	printf("\nWavelength of emitted light = %.0f nm", _lambda);
 	printf("\nOutput will be scaled by a factor of %d", _scalefactor);
 	printf("\nFiles of type %s will be analysed", _ext);
+
 	// Sigma estimate for Gaussian fitting
 	_sigmaEst = 0.305f * _lambda / (_numAp * _spatialRes);
 	_sig2 = _sigmaEst * _sigmaEst;
@@ -83,18 +86,14 @@ void runDetector()
 	v_iter = v.begin();
 
 	float reqMem = ((float)FIT_SIZE) * MAX_DETECTIONS * frames * (FIT_SIZE + DATA_ROWS) * sizeof(float);
-
-	int numLoops = reqMem / MAX_MEMORY;
-	if (numLoops * MAX_MEMORY < reqMem) numLoops++;
+	int numLoops = (int)(ceilf(reqMem / MAX_MEMORY));
 	int frameDiv = (int)(ceilf(((float)frames)/numLoops));
-
 	int totalFrames = frames;
 	frames = 0;
 	int outFrames = 0;
 
 	// Storage for regions containing candidate particles
 	Matrix candidates;
-	// Width of each region set to one quarter warp (assuming FIT_RADIUS = 3)
 	candidates.width = FIT_SIZE * MAX_DETECTIONS * frameDiv;
 	candidates.stride = candidates.width;
 	candidates.height = FIT_SIZE + DATA_ROWS;
@@ -105,9 +104,9 @@ void runDetector()
 	for(int loopIndex=0; loopIndex < numLoops; loopIndex++){
 		printf("\n\n-------------------------\n\nLOOP %d OF %d\n\n-------------------------\n\n", loopIndex+1,numLoops);
 
-		// Read one image at a time and find candidate particles in each
 		printf("\nFinding Maxima ... %d", 0);
 		int count = 0;
+		// Read one image at a time and find candidate particles in each
 		for(; frames < (loopIndex + 1) * frameDiv && v_iter != v.end(); v_iter++){
 			string ext_s = ((*v_iter).extension()).string();
 			if((strcmp(ext_s.c_str(), _ext) == 0)) {
@@ -129,7 +128,6 @@ void runDetector()
 		if(count > 0) GaussFitter(candidates, count, _sigmaEst, _maxThresh);
 		clock_t totaltime = 0;
 		printf("\n-------------------------\n\nWriting Output ... %d", 0);
-		//float meanprec = 0.0f;
 		for(int z=0; z<frameDiv; z++){
 			Matrix cudaoutput;
 			cudaoutput.width = width*_scalefactor;
@@ -142,30 +140,21 @@ void runDetector()
 			}
 			Mat cudasaveframe(height*_scalefactor,width*_scalefactor,CV_32F);
 			while(round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount<count){
-				int x = round(candidates.elements[outcount + candidates.stride * X_ROW]);
-				int y = round(candidates.elements[outcount + candidates.stride * Y_ROW]);
-				int best = round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
-				int xRegionCentre = outcount*FIT_SIZE+FIT_RADIUS;
-				int yRegionCentre = FIT_RADIUS+HEADER;
-				//float prec = getPrecision(candidates, outcount);
-				//if(prec > 0.0f){
-					//meanprec += prec;
-					if(best>=0){
-						for(int i=0; i<=best; i++){
-							float mag = candidates.elements[outcount + candidates.stride * (MAG_ROW + i)];
-							float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
-							float xe = candidates.elements[outcount + candidates.stride * (XE_ROW + i)];
-							float ye = candidates.elements[outcount + candidates.stride * (YE_ROW + i)];
-							//if(candidates.elements[outcount + candidates.stride * (MAG_ROW + i)] > _maxThresh){
-								/*testDraw2DGaussian(cudaoutput, candidates.elements[outcount + candidates.stride * (MAG_ROW + i)],
-								x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
-								y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);*/
-								testDraw2DGaussian(cudaoutput, x + xe - xRegionCentre, y + ye - yRegionCentre, _sigmaEst * 100.0f / (mag - bg));
-							/*drawSquare(cudaoutput, x + candidates.elements[outcount + candidates.stride * (XE_ROW + i)] - xRegionCentre,
-								y + candidates.elements[outcount + candidates.stride * (YE_ROW + i)] - yRegionCentre);*/
-							//}
-						}
+				int inputX = round(candidates.elements[outcount + candidates.stride * X_ROW]);
+				int inputY = round(candidates.elements[outcount + candidates.stride * Y_ROW]);
+				int bestN = round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
+				int candidatesX = outcount * FIT_SIZE + FIT_RADIUS;
+				int candidatesY = FIT_RADIUS + HEADER;
+				if(bestN >= 0){
+					for(int i = 0; i <= bestN; i++){
+						float mag = candidates.elements[outcount + candidates.stride * (MAG_ROW + i)];
+						float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
+						float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
+						float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
+						float prec = _sigmaEst * 100.0f / (mag - bg);
+						testDraw2DGaussian(cudaoutput, localisedX, localisedY, prec);
 					}
+				}
 				outcount++;
 			}
 			copyFromMatrix(cudasaveframe, cudaoutput, 0, 65536.0f);
@@ -283,6 +272,7 @@ extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool v
 	return count;
 }
 
+/*
 void testDoMultiFit(Matrix M, int x0, int N, float *xe, float *ye, float *mag, float *r){
 	for(int i=0; i<ITERATIONS; i++){
 		for(int j=0; j<=N; j++){
@@ -301,7 +291,9 @@ void testDoMultiFit(Matrix M, int x0, int N, float *xe, float *ye, float *mag, f
 	r[N] = testGetRSquared(x0, testSumMultiResiduals(x0, xe, ye, mag, M, 0.0f, 0.0f, 0.0f, 0, N), M);
 	return;
 }
+*/
 
+/*
 float testSumMultiResiduals(int x0, float *xe, float *ye, float *mag, Matrix M, float xinc, float yinc, float minc, int index, int N) {
         float residuals = 0.0f;
 		int eoffset = N * N_MAX;
@@ -323,6 +315,7 @@ float testSumMultiResiduals(int x0, float *xe, float *ye, float *mag, Matrix M, 
         }
         return residuals;
     }
+*/
 
 float evaluate(float x0, float y0, float mag, int x, int y, float sigma2) {
 		return mag * exp(-((x - x0)*(x - x0) + (y - y0)*(y - y0)) / (sigma2));
@@ -336,9 +329,8 @@ bool testDraw2DGaussian(Matrix image, float x01, float y01, float prec) {
         int x, y;
 		float x0 = x01 * _scalefactor;
 		float y0 = y01 * _scalefactor;
-		//prec /= (_spatialRes/_scalefactor);
 		float prec2s = (prec * prec);
-		int drawRadius = prec * 3;
+		int drawRadius = (int)boost::math::round<float>(prec * 3.0f);
 		if (drawRadius > min(0.1f * image.width, 0.1f * image.height)) return false;
         for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {
             for (y = (int) floor(y0 - drawRadius); y <= y0 + drawRadius; y++) {
@@ -347,7 +339,6 @@ bool testDraw2DGaussian(Matrix image, float x01, float y01, float prec) {
 				if(x >= 0 && x < image.width && y >= 0 && y < image.height){
 					int index = x + y * image.stride;
 					image.elements[index] = image.elements[index] + testMultiEvaluate(x0, y0, x, y, prec2s);
-					//image.elements[index] = image.elements[index] + 1.0f;
 				}
             }
         }
@@ -387,6 +378,7 @@ bool drawSquare(Matrix image, float x01, float y01) {
     return true;
 }
 
+/*
 int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag){
 	testCentreOfMass(&xe[0], &ye[0], index, image);
 	mag[0] = image.elements[index + (FIT_RADIUS + 3) * image.stride];
@@ -426,7 +418,9 @@ int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, 
 	}
 	return best;
 }
+*/
 
+/*
 void testCentreOfMass(float *x, float *y, int index, Matrix image){
 	float xsum = 0.0f;
 	float ysum = 0.0f;
@@ -442,6 +436,7 @@ void testCentreOfMass(float *x, float *y, int index, Matrix image){
 	*x = xsum / sum;
 	*y = ysum / sum;
 }
+*/
 
 float getPrecision(Matrix candidates, int index){
 	int y0 = HEADER;
@@ -456,7 +451,7 @@ float getPrecision(Matrix candidates, int index){
 	}
 	if(N>0.0f){
 		bg /= (best + 1);
-		float s = 2.0 * _sigmaEst * _spatialRes;
+		float s = 2.0f * _sigmaEst * _spatialRes;
 		float a = s * s + (_spatialRes * _spatialRes) / 12.0f;
 		float b = 8.0f * boost::math::constants::pi<float>() * pow(s, 4.0f) * bg * bg;
 		return pow((a / N) + (b / (_spatialRes * _spatialRes * N * N)), 0.5f);

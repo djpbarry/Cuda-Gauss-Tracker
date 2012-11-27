@@ -156,7 +156,8 @@ extern  void matrixCopy(Matrix source, Matrix dest, int start){
 
 extern void saveMatrix(Matrix source, int x, int y, int radius){
 	FILE *fp;
-	fp = fopen("C:/users/barry05/Desktop/matrix.txt", "w");
+	FILE **fpp = &fp;
+	fopen_s(fpp, "C:/users/barry05/Desktop/matrix.txt", "w");
 	for(int m=y-FIT_RADIUS; m <= y+FIT_RADIUS; m++){
 		int offset = m * source.stride;
 		for(int n=x-FIT_RADIUS; n <= x+FIT_RADIUS; n++){

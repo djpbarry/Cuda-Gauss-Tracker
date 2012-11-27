@@ -42,6 +42,10 @@ extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool v
 
 extern "C" float _spatialRes;
 extern "C" int _scalefactor;
+extern "C" float _sigmaEst;
+extern "C" float _numAp;
+extern "C" float _lambda;
+extern "C" float _mSigmaPSFxy = _sigmaEst;
 float* _mStateVectors;
 float* _mParticles;
 float* _mStateVectorsMemory;
@@ -49,7 +53,6 @@ float* _mParticlesMemory;
 float* _mMaxLogLikelihood;
 int* _counts; // number of state vectors in each frame
 int _mInitRWIterations = 1;
-extern "C" float _mSigmaPSFxy = (0.305f * WAVELENGTH / NA);
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 float _mSigmaOfDynamics[] = {500.0f, 500.0f, 1.0f, 1.0f};
 int _currentLength;
@@ -136,7 +139,7 @@ void runTracker(){
 	candidates.height = FIT_SIZE + DATA_ROWS;
 	candidates.size = candidates.width * candidates.height;
 	candidates.elements = (float*)malloc(sizeof(float) * candidates.size);
-	_currentLength = 0;
+	_mSigmaPSFxy = (0.305f * _lambda / _numAp);
 	_currentLength = maxFinder(_mOriginalImage, candidates, 0.0f, false, _currentLength, 0, 0);
 	for (int i = 0; i < _currentLength; i++) {
 		float x = candidates.elements[i];

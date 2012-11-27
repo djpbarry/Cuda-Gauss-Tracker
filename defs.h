@@ -28,8 +28,6 @@
 #define PNG ".png"
 #define INPUT_LENGTH 10
 #define DIM_OF_STATE 7
-#define WAVELENGTH 650.0f
-#define NA 1.4f
 #define BACKGROUND 1.0f
 #define TIF ".tif"
 #define MAX_MEMORY 500000000
