@@ -62,7 +62,7 @@ void runDetector()
 	_2sig2 = 2.0f * _sig2;
 
 	printf("\n\nStart Detector...\n");
-	char* folder = "C:/Users/barry05/Desktop/2012.11.20 Photon Counting Test/Power_10_Exp_100_II (Aligned)/Diff Sequence";
+	char* folder = "C:/Users/barry05/Desktop/2012.11.20 Photon Counting Test/Power_100_Exp_100_I (Aligned)/Diff Sequence I";
 	printf("\nFolder: %s\n", folder);
 
 	string outputDir(folder);
@@ -339,6 +339,7 @@ bool testDraw2DGaussian(Matrix image, float x01, float y01, float prec) {
 		//prec /= (_spatialRes/_scalefactor);
 		float prec2s = (prec * prec);
 		int drawRadius = prec * 3;
+		if (drawRadius > min(0.1f * image.width, 0.1f * image.height)) return false;
         for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {
             for (y = (int) floor(y0 - drawRadius); y <= y0 + drawRadius; y++) {
                 /* The current pixel value is added so as not to "overwrite" other
