@@ -1,17 +1,19 @@
 #include "stdafx.h"
 #include <time.h>
-#include <matrix.h>
+#include <matrix_mat.h>
 #include <utils.h>
 #include <defs.h>
 #include <vector>
 #include <iterator>
+#include <global_params.h>
+#include <gauss_finder.h>
+#include <cuda_tracker.h>
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include <boost/math/special_functions/round.hpp>
 
 using namespace boost;
 
-extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int currentLength, int nbParticles);
 int loadImages(char* ext, vector<path> v, char* folder, int numFiles);
 void runTracker();
 void createParticles(float* aStateVectors, float* aParticles);
@@ -38,14 +40,7 @@ void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex
 void copyStateParticlesToMemory(float* dest, float* source, int frameIndex);
 void copyParticle(float* dest, float* source, int index);
 void updateStateVector(float* vector, int index);
-extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
 
-extern "C" float _spatialRes;
-extern "C" int _scalefactor;
-extern "C" float _sigmaEst;
-extern "C" float _numAp;
-extern "C" float _lambda;
-extern "C" float _mSigmaPSFxy = _sigmaEst;
 float* _mStateVectors;
 float* _mParticles;
 float* _mStateVectorsMemory;

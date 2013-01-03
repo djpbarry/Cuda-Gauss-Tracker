@@ -4,8 +4,8 @@
 #define FILENAME_LENGTH 10
 #define N_MAX 5
 #define MAX_DETECTIONS 2000
-#define FIT_RADIUS 7
-#define FIT_SIZE 15
+#define FIT_RADIUS 3
+#define FIT_SIZE 7
 #define SEARCH_RADIUS 1
 #define STEP_TOL 2000
 #define ITERATIONS 100

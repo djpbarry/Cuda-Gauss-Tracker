@@ -7,10 +7,9 @@
 #include "cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include <cuda_gauss_fitter.h>
 
 #define NUM_REPS 1
-
-extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThresh);
 
 __shared__ float _2sig2, _maxThresh, xyStepSize, magStepSize, bgStepSize;
 

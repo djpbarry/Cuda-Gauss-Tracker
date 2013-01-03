@@ -1,14 +1,15 @@
 
 #include "stdafx.h"
-#include <cv.h>
-#include <highgui.h>
 #include <time.h>
-#include <matrix.h>
+#include <matrix_mat.h>
 #include <defs.h>
 #include <utils.h>
 #include <iterator>
 #include <vector>
 #include <math.h>
+#include <global_params.h>
+#include <cuda_gauss_fitter.h>
+#include <gauss_finder.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/special_functions/round.hpp>
@@ -17,25 +18,18 @@ using namespace cv;
 
 void runDetector();
 int findParticles(Mat image, Matrix B, int count, int z);
-extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThresh);
-extern "C" int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z);
-extern void saveMatrix(Matrix source, int x, int y, int radius);
-float testEvaluate(float x0, float y0, float max, int x, int y, float sig2);
+//float testEvaluate(float x0, float y0, float max, int x, int y, float sig2);
 float testGetRSquared(int x0, float srs, Matrix M);
 bool testDraw2DGaussian(Matrix image, float x0, float y0, float prec);
 bool drawSquare(Matrix image, float x01, float y01);
+bool testDrawDot(Matrix image, float x01, float y01, float prec);
 //void testDoMultiFit(Matrix M, int x0, int N, float *xe, float *ye, float *mag, float *r);
 //float testSumMultiResiduals(int x0, float *xe, float *ye, float *mag, Matrix M, float xinc, float yinc, float minc, int index, int N);
-float testMultiEvaluate(float x0, float y0, int x, int y, float sigma2);
+float evaluate(float x0, float y0, int x, int y, float sigma2);
 //int testInitialiseFitting(Matrix image, int index, int N, float *xe, float *ye, float *mag);
 //void testCentreOfMass(float *x, float *y, int index, Matrix image);
 float getPrecision(Matrix candidates, int index);
 
-extern "C" float _spatialRes = 40.3125f;
-extern "C" float _numAp = 1.4f;
-extern "C" float _lambda = 561.0f;
-extern "C" float _sigmaEst = 0.305f * _lambda / (_numAp * _spatialRes);
-extern "C" int _scalefactor = 1;
 float _2sig2, _sig2;
 float _maxThresh = 50.0f;
 char* _ext = ".tif";
@@ -64,7 +58,7 @@ void runDetector() {
     _2sig2 = 2.0f * _sig2;
 
     printf("\n\nStart Detector...\n");
-    char* folder = "C:/Users/barry05/Desktop/2012.11.20 Photon Counting Test/Power_100_Exp_100_I (Aligned)/Diff Sequence I";
+    char* folder = "C:/Users/barry05/Desktop/Test Data Sets/CUDA Gauss Localiser Tests/Test6";
     printf("\nFolder: %s\n", folder);
 
     string outputDir(folder);
@@ -147,11 +141,14 @@ void runDetector() {
                 if (bestN >= 0) {
                     for (int i = 0; i <= bestN; i++) {
                         float mag = candidates.elements[outcount + candidates.stride * (MAG_ROW + i)];
-                        float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
-                        float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
-                        float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
-                        float prec = _sigmaEst * 100.0f / (mag - bg);
-                        testDraw2DGaussian(cudaoutput, localisedX, localisedY, prec);
+						float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
+						if(mag > bg){
+							float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
+							float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
+							float prec = _sigmaEst * 100.0f / (mag - bg);
+							testDraw2DGaussian(cudaoutput, localisedX, localisedY, prec);
+							//testDrawDot(cudaoutput, inputX, inputY, prec);
+						}
                     }
                 }
                 outcount++;
@@ -316,11 +313,11 @@ float testSumMultiResiduals(int x0, float *xe, float *ye, float *mag, Matrix M, 
     }
  */
 
-float evaluate(float x0, float y0, float mag, int x, int y, float sigma2) {
+/*float evaluate(float x0, float y0, float mag, int x, int y, float sigma2) {
     return mag * exp(-((x - x0)*(x - x0) + (y - y0)*(y - y0)) / (sigma2));
-}
+}*/
 
-float testMultiEvaluate(float x0, float y0, int x, int y, float sigma2) {
+float evaluate(float x0, float y0, int x, int y, float sigma2) {
     return (1.0f / (2.0f * boost::math::constants::pi<float>() * sigma2)) * exp(-((x - x0)*(x - x0) + (y - y0)*(y - y0)) / (sigma2));
 }
 
@@ -337,10 +334,18 @@ bool testDraw2DGaussian(Matrix image, float x01, float y01, float prec) {
             Gaussians in close proximity: */
             if (x >= 0 && x < image.width && y >= 0 && y < image.height) {
                 int index = x + y * image.stride;
-                image.elements[index] = image.elements[index] + testMultiEvaluate(x0, y0, x, y, prec2s);
+                image.elements[index] = image.elements[index] + evaluate(x0, y0, x, y, prec2s);
             }
         }
     }
+    return true;
+}
+
+bool testDrawDot(Matrix image, float x01, float y01, float prec) {
+    float x0 = x01 * _scalefactor;
+    float y0 = y01 * _scalefactor;
+	int index = x0 + y0 * image.stride;
+    image.elements[index] = image.elements[index] + 1.0f;
     return true;
 }
 

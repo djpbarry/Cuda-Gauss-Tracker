@@ -17,4 +17,7 @@ typedef struct {
     char* elements; 
 } charMatrix;
 
+extern void saveMatrix(Matrix source, int x, int y, int radius);
+extern void matrixCopy(Matrix source, Matrix dest, int start);
+
 #endif

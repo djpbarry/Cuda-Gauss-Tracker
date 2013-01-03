@@ -7,11 +7,10 @@
 #include "cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include <global_params.h>
+#include <cuda_tracker.h>
 
-extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int currentLength, int nbParticles);
 __global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float* logLikelihoods, float vVarianceXYinPx);
-
-extern "C" float _mSigmaPSFxy, _spatialRes;
 
 /*
 * Parallelised updating of particle weights in particle filter for tracking application. Weights of all particles for all state vectors (objects)

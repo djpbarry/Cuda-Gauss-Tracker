@@ -1,30 +1,7 @@
-#ifndef _UTILS_
-#define _UTILS_
 
-#include <iterator>
-#include <vector>
-#include <boost/filesystem.hpp>
-#include <matrix.h>
-#include <cv.h>
-#include <highgui.h>
+#include <utils.h>
+#include <matrix_mat.h>
 #include <defs.h>
-
-using namespace std;
-using namespace boost::filesystem;
-using namespace cv;
-
-typedef vector<path> vec;
-
-extern int countFiles(vector<path> v, char* ext);
-extern vector<path> getFiles(char* folder);
-extern float getInput(char* prompt, float default_val);
-extern void getTextInput(char* prompt, char* result);
-extern int round(float number);
-extern void copyToMatrix(Mat M, Matrix A, int index);
-extern void copyFromMatrix(Mat M, Matrix A, int index, float scale);
-extern void getDims(vector<path> v, const char* ext, int* dims);
-extern void matrixCopy(Matrix source, Matrix dest, int start);
-extern void saveMatrix(Matrix source, int x, int y, int radius);
 
 extern int countFiles(vector<path> v, char* ext) {
     vector<path>::iterator v_iter;
@@ -93,34 +70,6 @@ extern int round(float number) {
     return (number >= 0) ? (int) (number + 0.5) : (int) (number - 0.5);
 }
 
-//Copy elements from an OpenCV Mat structure into a Matrix. Necessary as CUDA and OpenCV inter-operability is poor.
-
-extern void copyToMatrix(Mat M, Matrix A, int index) {
-    int frameoffset = index * A.width * A.height;
-    for (int y = 0; y < M.rows; y++) {
-        int Moffset = y * M.step1();
-        int Aoffset = y * A.stride + frameoffset;
-        for (int x = 0; x < M.cols; x++) {
-            A.elements[Aoffset + x] = ((float*) M.data)[Moffset + x];
-        }
-    }
-    return;
-}
-
-//Copy elements from a Matrix into an OpenCV Mat structure. Necessary as CUDA and OpenCV inter-operability is poor.
-
-extern void copyFromMatrix(Mat M, Matrix A, int index, float scale) {
-    int frameoffset = index * A.width * A.height;
-    for (int y = 0; y < M.rows; y++) {
-        int Moffset = y * M.step1();
-        int Aoffset = y * A.stride + frameoffset;
-        for (int x = 0; x < M.cols; x++) {
-            ((float*) M.data)[Moffset + x] = scale * A.elements[Aoffset + x];
-        }
-    }
-    return;
-}
-
 //Copies the width and height of the first image of extension ext found in the file list specified by v into dims.
 
 extern void getDims(vector<path> v, const char* ext, int* dims) {
@@ -136,32 +85,3 @@ extern void getDims(vector<path> v, const char* ext, int* dims) {
     }
     return;
 }
-
-/*
- * Copies the contents of Matrix source into dest. Elements within source are copied starting at the specified index and stopping when dest is full.
- * @param source The source Matrix to be copied
- * @param dest The destination Matrix
- * @param start The first index of source elements to be copied
- */
-extern void matrixCopy(Matrix source, Matrix dest, int start) {
-    for (int i = 0; i < dest.size; i++) {
-        dest.elements[i] = source.elements[i + start];
-    }
-}
-
-extern void saveMatrix(Matrix source, int x, int y, int radius) {
-    FILE *fp;
-    FILE **fpp = &fp;
-    fopen_s(fpp, "C:/users/barry05/Desktop/matrix.txt", "w");
-    for (int m = y - FIT_RADIUS; m <= y + FIT_RADIUS; m++) {
-        int offset = m * source.stride;
-        for (int n = x - FIT_RADIUS; n <= x + FIT_RADIUS; n++) {
-            int bx = n - x + FIT_RADIUS;
-            fprintf(fp, "%.0f ", source.elements[offset + n]);
-        }
-        fprintf(fp, "\n");
-    }
-    fclose(fp);
-}
-
-#endif
