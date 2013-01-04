@@ -43,7 +43,7 @@ extern float getInput(char* prompt, float default_val) {
     char inputs[INPUT_LENGTH];
     float result = default_val;
     printf("Enter %s (non-numeric for default): ", prompt);
-    scanf_s("%9s", inputs, INPUT_LENGTH);
+    scanf_s("%s", inputs, INPUT_LENGTH);
     float temp;
     if (sscanf_s(inputs, "%f", &temp) > 0) {
         result = temp;
@@ -53,15 +53,11 @@ extern float getInput(char* prompt, float default_val) {
 
 extern void getTextInput(char* prompt, char* result) {
     char inputs[INPUT_LENGTH];
-    printf("Enter %s (non-numeric for default): ", prompt);
-    scanf_s("%9s", inputs, INPUT_LENGTH);
+    printf("Enter %s: ", prompt);
+    scanf_s("%s", inputs, INPUT_LENGTH);
     char temp[INPUT_LENGTH];
-    if (sscanf_s(inputs, "%9s", temp, INPUT_LENGTH) > 0) {
-        if (temp[0] != '.') {
-            printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", temp, result);
-        } else {
-            strcpy_s(result, INPUT_LENGTH * sizeof (char), temp);
-        }
+    if (sscanf_s(inputs, "%s", temp, INPUT_LENGTH) > 0) {
+		strcpy_s(result, INPUT_LENGTH * sizeof (char), temp);
     }
     return;
 }

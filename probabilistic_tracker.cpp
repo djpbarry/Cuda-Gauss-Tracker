@@ -6,7 +6,7 @@
 #include <vector>
 #include <iterator>
 #include <global_params.h>
-#include <gauss_finder.h>
+#include <gauss_tools.h>
 #include <cuda_tracker.h>
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
@@ -134,8 +134,9 @@ void runTracker() {
     candidates.height = FIT_SIZE + DATA_ROWS;
     candidates.size = candidates.width * candidates.height;
     candidates.elements = (float*) malloc(sizeof (float) * candidates.size);
+	bool warnings[] = {true, false};
     _mSigmaPSFxy = (0.305f * _lambda / _numAp);
-    _currentLength = maxFinder(_mOriginalImage, candidates, 0.0f, false, _currentLength, 0, 0);
+    _currentLength = maxFinder(_mOriginalImage, candidates, 0.0f, false, _currentLength, 0, 0, FIT_RADIUS, warnings);
     for (int i = 0; i < _currentLength; i++) {
         float x = candidates.elements[i];
         float y = candidates.elements[i + candidates.stride];

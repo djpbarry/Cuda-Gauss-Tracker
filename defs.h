@@ -1,7 +1,7 @@
 #ifndef _DEFS_
 #define _DEFS_
 
-#define FILENAME_LENGTH 10
+#define NUM_PARAMS 5
 #define N_MAX 5
 #define MAX_DETECTIONS 2000
 #define FIT_RADIUS 3
@@ -26,7 +26,7 @@
 #define MAG_ROW (YE_ROW + N_MAX)
 #define BG_ROW (MAG_ROW + N_MAX)
 #define PNG ".png"
-#define INPUT_LENGTH 10
+#define INPUT_LENGTH 100
 #define DIM_OF_STATE 7
 #define BACKGROUND 1.0f
 #define TIF ".tif"
