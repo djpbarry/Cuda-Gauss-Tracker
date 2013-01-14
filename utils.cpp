@@ -81,3 +81,54 @@ extern void getDims(vector<path> v, const char* ext, int* dims) {
     }
     return;
 }
+
+/*
+	Load default parameter values from a configuration file.
+*/
+extern bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder) {
+    FILE *fp;
+    FILE **fpp = &fp;
+    fopen_s(fpp, filename, "r");
+	char *line = (char*) malloc(maxline * sizeof(char));
+	char *dummyString = (char*) malloc(maxline * sizeof(char));
+	char dummyChar[1];
+	int pindex = 0;
+	if(fgets(line, maxline, fp) != NULL){
+		sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof(char), inputFolder, maxline);
+	} else {
+		return false;
+	}
+	while(fgets(line, maxline, fp) != NULL){
+		sscanf_s(line, "%s %c %f", dummyString, maxline, dummyChar, sizeof(char), &params[pindex], sizeof(float));
+		pindex++;
+	}
+    fclose(fp);
+	if(pindex < paramcount){
+		return false;
+	} else {
+		return true;
+	}
+}
+
+int loadImages(Matrix destMatrix, char* ext, vector<path> v, char* folder, int numFiles, bool prompt) {
+    //Load images into volume
+    vector<path>::iterator v_iter;
+    if(prompt) printf("\nLoading Images ... %d%%", 0);
+    int thisFrame = 0;
+    Mat frame;
+    for (v_iter = v.begin(); v_iter != v.end(); v_iter++) {
+        string ext_s = ((*v_iter).extension()).string();
+        if ((strcmp(ext_s.c_str(), ext) == 0)) {
+            if(prompt) printf("\rLoading Images ... %d%%", ((thisFrame + 1) * 100) / numFiles);
+            frame = imread((*v_iter).string(), -1);
+            copyToMatrix(frame, destMatrix, thisFrame);
+            thisFrame++;
+        }
+    }
+    return thisFrame;
+}
+
+void waitForKey(){
+	getchar();
+    getchar();
+}

@@ -3,7 +3,7 @@
 
 #define NUM_PARAMS 5
 #define N_MAX 5
-#define MAX_DETECTIONS 2000
+#define MAX_DETECTIONS 200
 #define FIT_RADIUS 3
 #define FIT_SIZE 7
 #define SEARCH_RADIUS 1

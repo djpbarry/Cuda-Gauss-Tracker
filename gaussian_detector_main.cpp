@@ -18,13 +18,12 @@
 using namespace cv;
 
 void runDetector();
-bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder);
 
-int main(int argc, char* argv[]) {
+/*int main(int argc, char* argv[]) {
     runDetector();
     return 0;
 }
-
+*/
 void runDetector() {
 	float _2sig2, _sig2;
 	float _maxThresh = 50.0f;
@@ -36,7 +35,7 @@ void runDetector() {
 		_spatialRes = params[0];
 		_numAp = params[1];
 		_lambda = params[2];
-		_sigmaEst = params[3] * _lambda / (_numAp * _spatialRes);
+		_sigmaEstNM = params[3] * _lambda / (_numAp * _spatialRes);
 		_scalefactor = (int)round(params[4]);
 	}
     _spatialRes = getInput("spatial resolution in nm", _spatialRes);
@@ -58,8 +57,8 @@ void runDetector() {
     printf("\nFiles of type %s will be analysed", _ext);
 
     // Sigma estimate for Gaussian fitting
-    _sigmaEst = 0.305f * _lambda / (_numAp * _spatialRes);
-    _sig2 = _sigmaEst * _sigmaEst;
+    _sigmaEstNM = 0.305f * _lambda / (_numAp * _spatialRes);
+    _sig2 = _sigmaEstNM * _sigmaEstNM;
     _2sig2 = 2.0f * _sig2;
 	bool warnings[] = {true, false};
 
@@ -111,7 +110,7 @@ void runDetector() {
             if ((strcmp(ext_s.c_str(), _ext) == 0)) {
                 printf("\rFinding Maxima ... %d", frames);
                 frame = imread((*v_iter).string(), -1);
-                count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEst, _maxThresh, warnings);
+                count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, _maxThresh, warnings);
                 frames++;
             }
         }
@@ -124,7 +123,7 @@ void runDetector() {
         } else if (warnings[1]) {
             printf("\n\nWarning: GPU fitting may be unreliable due to high range of pixel values.\n\n");
         }
-        if (count > 0) GaussFitter(candidates, count, _sigmaEst, _maxThresh);
+        if (count > 0) GaussFitter(candidates, count, _sigmaEstNM, _maxThresh);
         clock_t totaltime = 0;
         printf("\n-------------------------\n\nWriting Output ... %d", 0);
         for (int z = 0; z < frameDiv; z++) {
@@ -151,7 +150,7 @@ void runDetector() {
 						if(mag > bg){
 							float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
 							float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
-							float prec = _sigmaEst * 100.0f / (mag - bg);
+							float prec = _sigmaEstNM * 100.0f / (mag - bg);
 							draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, prec);
 							//testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
 						}
@@ -175,35 +174,6 @@ void runDetector() {
     }
     //printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
     printf("\n\nPress Any Key...");
-    getchar();
-    getchar();
+    waitForKey();
     return;
-}
-
-/*
-	Load default parameter values from a configuration file.
-*/
-bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder) {
-    FILE *fp;
-    FILE **fpp = &fp;
-    fopen_s(fpp, filename, "r");
-	char *line = (char*) malloc(maxline * sizeof(char));
-	char *dummyString = (char*) malloc(maxline * sizeof(char));
-	char dummyChar[1];
-	int pindex = 0;
-	if(fgets(line, maxline, fp) != NULL){
-		sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof(char), inputFolder, maxline);
-	} else {
-		return false;
-	}
-	while(fgets(line, maxline, fp) != NULL){
-		sscanf_s(line, "%s %c %f", dummyString, maxline, dummyChar, sizeof(char), &params[pindex], sizeof(float));
-		pindex++;
-	}
-    fclose(fp);
-	if(pindex < paramcount){
-		return false;
-	} else {
-		return true;
-	}
 }
