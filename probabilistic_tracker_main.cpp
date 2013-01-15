@@ -5,27 +5,9 @@ int main(int argc, char* argv[]){
 	int _mNbParticles = 500;
 	int _mInitRWIterations = 1;
 	char* _ext = ".tif";
-	float params[NUM_PARAMS];
 	char folder[INPUT_LENGTH];
-	char tempExt[INPUT_LENGTH];
-	if(!loadParams(params, NUM_PARAMS, "c:/users/barry05/gausstrackerparams.txt", INPUT_LENGTH, folder)){
-		_spatialRes = params[0];
-		_numAp = params[1];
-		_lambda = params[2];
-		_sigmaEstNM = params[3] * _lambda / (_numAp * _spatialRes);
-		_mSigmaPSFxy = params[3] * _lambda / _numAp;
-		_scalefactor = (int)round(params[4]);
-	}
-	_spatialRes = getInput("spatial resolution in nm", _spatialRes);
-    _lambda = getInput("wavelength of emitted light in nm", _lambda);
-    _scalefactor = round(getInput("scaling factor for output", (float) _scalefactor));
-    getTextInput("file extension", tempExt);
-
-	if (tempExt[0] != '.') {
-		printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", tempExt, _ext);
-    } else {
-		strcpy_s(_ext, INPUT_LENGTH * sizeof (char), tempExt);
-	}
+	float _numAp, _lambda;
+	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, _ext, folder, _configFile);
     string outputDir(folder);
     outputDir.append("/CudaOutput");
     if(!(exists(outputDir))){

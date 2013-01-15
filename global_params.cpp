@@ -1,8 +1,7 @@
 #include <global_params.h>
 
-extern float _spatialRes = 40.3125f;
-extern float _numAp = 1.4f;
-extern float _lambda = 561.0f;
-extern float _sigmaEstNM = 0.305f * _lambda / (_numAp * _spatialRes);
+extern float _spatialRes = 1.0f;
+extern float _sigmaEstNM = 100.0f;
 extern int _scalefactor = 1;
-extern float _mSigmaPSFxy = 0.305f * _lambda / _numAp;
+extern float _sigmaEstPix = 1.0f;
+extern char* _configFile = "C:/Users/barry05/gausstrackerparams.txt";

@@ -1,7 +1,7 @@
 #ifndef _DEFS_
 #define _DEFS_
 
-#define NUM_PARAMS 5
+#define NUM_PARAMS 6
 #define N_MAX 5
 #define MAX_DETECTIONS 200
 #define FIT_RADIUS 3

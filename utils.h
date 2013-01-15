@@ -23,5 +23,6 @@ extern void getDims(vector<path> v, const char* ext, int* dims);
 extern bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder);
 extern int loadImages(Matrix destMatrix, char* ext, vector<path> v, char* folder, int numFiles, bool prompt);
 extern void waitForKey();
+extern void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, char* _ext, char* folder, char* file);
 
 #endif

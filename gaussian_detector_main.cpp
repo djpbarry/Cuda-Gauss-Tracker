@@ -25,36 +25,11 @@ void runDetector();
 }
 */
 void runDetector() {
-	float _2sig2, _sig2;
+	float _2sig2, _sig2, _numAp, _lambda;
 	float _maxThresh = 50.0f;
 	char* _ext = ".tif";
-	float params[NUM_PARAMS];
 	char folder[INPUT_LENGTH];
-	char tempExt[INPUT_LENGTH];
-	if(!loadParams(params, NUM_PARAMS, "c:/users/barry05/gausstrackerparams.txt", INPUT_LENGTH, folder)){
-		_spatialRes = params[0];
-		_numAp = params[1];
-		_lambda = params[2];
-		_sigmaEstNM = params[3] * _lambda / (_numAp * _spatialRes);
-		_scalefactor = (int)round(params[4]);
-	}
-    _spatialRes = getInput("spatial resolution in nm", _spatialRes);
-    _maxThresh = getInput("maximum intensity threshold", _maxThresh);
-    _lambda = getInput("wavelength of emitted light in nm", _lambda);
-    _scalefactor = round(getInput("scaling factor for output", (float) _scalefactor));
-    getTextInput("file extension", tempExt);
-
-	if (tempExt[0] != '.') {
-		printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", tempExt, _ext);
-    } else {
-		strcpy_s(_ext, INPUT_LENGTH * sizeof (char), tempExt);
-	}
-
-    printf("\nSpatial resolution = %.0f nm", _spatialRes);
-    printf("\nMaximum intensity threshold = %.0f", _maxThresh);
-    printf("\nWavelength of emitted light = %.0f nm", _lambda);
-    printf("\nOutput will be scaled by a factor of %d", _scalefactor);
-    printf("\nFiles of type %s will be analysed", _ext);
+	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, _ext, folder, _configFile);
 
     // Sigma estimate for Gaussian fitting
     _sigmaEstNM = 0.305f * _lambda / (_numAp * _spatialRes);

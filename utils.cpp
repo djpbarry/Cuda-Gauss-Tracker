@@ -92,18 +92,18 @@ extern bool loadParams(float *params, int paramcount, char *filename, int maxlin
 	char *line = (char*) malloc(maxline * sizeof(char));
 	char *dummyString = (char*) malloc(maxline * sizeof(char));
 	char dummyChar[1];
-	int pindex = 0;
+	int lineIndex = 1;
 	if(fgets(line, maxline, fp) != NULL){
 		sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof(char), inputFolder, maxline);
 	} else {
 		return false;
 	}
 	while(fgets(line, maxline, fp) != NULL){
-		sscanf_s(line, "%s %c %f", dummyString, maxline, dummyChar, sizeof(char), &params[pindex], sizeof(float));
-		pindex++;
+		sscanf_s(line, "%s %c %f", dummyString, maxline, dummyChar, sizeof(char), &params[lineIndex], sizeof(float));
+		lineIndex++;
 	}
     fclose(fp);
-	if(pindex < paramcount){
+	if(lineIndex != paramcount ){
 		return false;
 	} else {
 		return true;
@@ -131,4 +131,29 @@ int loadImages(Matrix destMatrix, char* ext, vector<path> v, char* folder, int n
 void waitForKey(){
 	getchar();
     getchar();
+}
+
+void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, char* _ext, char* folder, char* file){
+	float params[NUM_PARAMS];
+	char tempExt[INPUT_LENGTH];
+	if(!loadParams(params, NUM_PARAMS, file, INPUT_LENGTH, folder)){
+		*_spatialRes = params[0];
+		*_numAp = params[1];
+		*_lambda = params[2];
+		*_sigmaEstNM = params[3] * *_lambda / (*_numAp * *_spatialRes);
+		*_sigmaEstPix = params[3] * *_lambda / *_numAp;
+		*_scalefactor = (int)round(params[4]);
+	} else {
+		printf("Failed to load configuration file: %s\n\n", file);
+	}
+	*_spatialRes = getInput("spatial resolution in nm", *_spatialRes);
+    *_lambda = getInput("wavelength of emitted light in nm", *_lambda);
+    *_scalefactor = round(getInput("scaling factor for output", (float) *_scalefactor));
+    getTextInput("file extension", tempExt);
+
+	if (tempExt[0] != '.') {
+		printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", tempExt, _ext);
+    } else {
+		strcpy_s(_ext, INPUT_LENGTH * sizeof (char), tempExt);
+	}
 }
