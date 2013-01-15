@@ -2,7 +2,6 @@
 #define _TRACKER_TOOLS_
 
 #include "stdafx.h"
-#include <time.h>
 #include <matrix_mat.h>
 #include <utils.h>
 #include <defs.h>
@@ -11,6 +10,7 @@
 #include <global_params.h>
 #include <gauss_tools.h>
 #include <cuda_tracker.h>
+#include <tracker_utils.h>
 #include <boost/random.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include <boost/math/special_functions/round.hpp>
@@ -33,11 +33,6 @@ extern void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* 
 extern void drawNewParticles(float* aParticlesToRedraw, float spatialRes, int _currentLength, int _mNbParticles);
 extern void drawFromProposalDistribution(float* particles, float spatialRes, int particleIndex);
 extern int checkStateVectors(float* stateVectors, float* particles, int width, int height, int nVectors, int nParticles);
-extern void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _counts, float* _mParticlesMemory);
-extern void copyStateVector(float* dest, float* source, int index, int _currentLength);
-extern void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex, int _mNbParticles);
-extern void copyStateParticlesToMemory(float* dest, float* source, int frameIndex, int _mNbParticles, int _currentLength);
-extern void copyParticle(float* dest, float* source, int index);
 extern void updateStateVector(float* vector, int index, float* _mStateVectors);
 extern void estimateStateVectors(float* aStateVectors, float* aParticles, int _currentLength, int _mNbParticles);
 extern bool resample(float* aParticles, int _currentLength, int _mNbParticles);

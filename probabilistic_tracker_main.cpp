@@ -73,7 +73,7 @@ int main(int argc, char* argv[]){
     runParticleFilter(_mOriginalImage, _mParticles, _mParticlesMemory, _mStateVectors, _mStateVectorsMemory, _counts, _currentLength, _mNbParticles);
 
     printf("\n\n");
-    output(dims, frames, outputDir, _mNbParticles, _counts, _mParticlesMemory);
+    output(dims, frames, outputDir, _mNbParticles, _counts, _mParticlesMemory, _scalefactor);
     printf("\n\nElapsed Time: %.3f s\n", ((float)(clock() - start))/1000.0f);
 	waitForKey();
     return 0;
