@@ -53,7 +53,7 @@ extern float getInput(char* prompt, float default_val) {
 
 extern void getTextInput(char* prompt, char* result) {
     char inputs[INPUT_LENGTH];
-    printf("Enter %s: ", prompt);
+    printf("%s", prompt);
     scanf_s("%s", inputs, INPUT_LENGTH);
     char temp[INPUT_LENGTH];
     if (sscanf_s(inputs, "%s", temp, INPUT_LENGTH) > 0) {
@@ -61,6 +61,22 @@ extern void getTextInput(char* prompt, char* result) {
     }
     return;
 }
+
+extern bool getBoolInput(char* prompt) {
+    printf("%s", prompt);
+	char input = 10; // 10 = ''
+	while(input == 10){
+		input = getchar();
+	}
+    if (input == 'Y' || input == 'y'){
+		return true;
+	} else if (input == 'N' || input == 'n'){
+		return false;
+	} else {
+		return getBoolInput(prompt);
+	}
+}
+
 
 extern int round(float number) {
     return (number >= 0) ? (int) (number + 0.5) : (int) (number - 0.5);
@@ -99,7 +115,7 @@ extern bool loadParams(float *params, int paramcount, char *filename, int maxlin
 		return false;
 	}
 	while(fgets(line, maxline, fp) != NULL){
-		sscanf_s(line, "%s %c %f", dummyString, maxline, dummyChar, sizeof(char), &params[lineIndex], sizeof(float));
+		sscanf_s(line, "%s %c %f", dummyString, maxline, dummyChar, sizeof(char), &params[lineIndex - 1], sizeof(float));
 		lineIndex++;
 	}
     fclose(fp);
@@ -133,27 +149,45 @@ void waitForKey(){
     getchar();
 }
 
-void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, char* _ext, char* folder, char* file){
+void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, float* _maxThresh, char* _ext, char* folder, char* file, bool* verbose){
 	float params[NUM_PARAMS];
 	char tempExt[INPUT_LENGTH];
-	if(!loadParams(params, NUM_PARAMS, file, INPUT_LENGTH, folder)){
+	if(loadParams(params, NUM_PARAMS, file, INPUT_LENGTH, folder)){
 		*_spatialRes = params[0];
 		*_numAp = params[1];
 		*_lambda = params[2];
 		*_sigmaEstNM = params[3] * *_lambda / (*_numAp * *_spatialRes);
 		*_sigmaEstPix = params[3] * *_lambda / *_numAp;
 		*_scalefactor = (int)round(params[4]);
+		*_maxThresh = params[5];
 	} else {
 		printf("Failed to load configuration file: %s\n\n", file);
 	}
 	*_spatialRes = getInput("spatial resolution in nm", *_spatialRes);
     *_lambda = getInput("wavelength of emitted light in nm", *_lambda);
+	*_maxThresh = getInput("maximum intensity threshold", *_maxThresh);
     *_scalefactor = round(getInput("scaling factor for output", (float) *_scalefactor));
-    getTextInput("file extension", tempExt);
-
+    getTextInput("Enter file extension: ", tempExt);
+	*verbose = getBoolInput("Verbose mode (Y/N)?");
 	if (tempExt[0] != '.') {
 		printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", tempExt, _ext);
     } else {
 		strcpy_s(_ext, INPUT_LENGTH * sizeof (char), tempExt);
 	}
+}
+
+int getCurrentRevisionNumber(char* filename, int maxline){
+	int revision;
+	FILE *fp;
+    FILE **fpp = &fp;
+    fopen_s(fpp, filename, "r");
+	char *line = (char*) malloc(maxline * sizeof(char));
+	char *dummyString = (char*) malloc(maxline * sizeof(char));
+	if(fgets(line, maxline, fp) != NULL){
+		sscanf_s(line, "%d %s", &revision, dummyString, maxline);
+	} else {
+		return -1;
+	}
+    fclose(fp);
+	return revision;
 }

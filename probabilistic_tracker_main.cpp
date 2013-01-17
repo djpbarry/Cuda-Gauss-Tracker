@@ -1,12 +1,13 @@
 
 #include <tracker_tools.h>
 
-int main(int argc, char* argv[]){
+/*int main(int argc, char* argv[]){
 	int _mNbParticles = 500;
 	int _mInitRWIterations = 1;
 	char* _ext = ".tif";
 	char folder[INPUT_LENGTH];
 	float _numAp, _lambda;
+	printf("Probabilistic Particle Tracker v1.%000d\n\n", getCurrentRevisionNumber(_tagFile, INPUT_LENGTH));
 	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, _ext, folder, _configFile);
     string outputDir(folder);
     outputDir.append("/CudaOutput");
@@ -78,3 +79,4 @@ int main(int argc, char* argv[]){
 	waitForKey();
     return 0;
 }
+*/

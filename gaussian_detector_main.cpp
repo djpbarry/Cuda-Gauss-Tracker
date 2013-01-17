@@ -19,17 +19,17 @@ using namespace cv;
 
 void runDetector();
 
-/*int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) {
     runDetector();
     return 0;
 }
-*/
+
 void runDetector() {
 	float _2sig2, _sig2, _numAp, _lambda;
-	float _maxThresh = 50.0f;
 	char* _ext = ".tif";
+	bool verbose;
 	char folder[INPUT_LENGTH];
-	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, _ext, folder, _configFile);
+	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder, _configFile, &verbose);
 
     // Sigma estimate for Gaussian fitting
     _sigmaEstNM = 0.305f * _lambda / (_numAp * _spatialRes);
@@ -74,6 +74,12 @@ void runDetector() {
     candidates.elements = (float*) malloc(sizeof (float) * candidates.size);
 
     Mat frame;
+
+	string dataDir(outputDir);
+	dataDir.append("/data.txt");
+	FILE *data;
+    FILE **pdata = &data;
+	fopen_s(pdata, dataDir.data(), "w");
     for (int loopIndex = 0; loopIndex < numLoops; loopIndex++) {
         printf("\n\n-------------------------\n\nLOOP %d OF %d\n\n-------------------------\n\n", loopIndex + 1, numLoops);
 
@@ -125,8 +131,10 @@ void runDetector() {
 						if(mag > bg){
 							float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
 							float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
-							float prec = _sigmaEstNM * 100.0f / (mag - bg);
+							//float prec = _sigmaEstNM * 100.0f / (mag - bg);
+							float prec = 0.5f;
 							draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, prec);
+							fprintf(data, "%d %f %f %f\n", outFrames, localisedX * _spatialRes, localisedY * _spatialRes, mag);
 							//testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
 						}
                     }
@@ -147,6 +155,7 @@ void runDetector() {
         }
         frame.release();
     }
+	fclose(data);
     //printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
     printf("\n\nPress Any Key...");
     waitForKey();
