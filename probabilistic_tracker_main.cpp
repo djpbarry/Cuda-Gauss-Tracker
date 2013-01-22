@@ -1,14 +1,23 @@
 
+#include "stdafx.h"
 #include <tracker_tools.h>
+#include <tracker_utils.h>
+#include <tracker_copy_utils.h>
+#include <defs.h>
+#include <utils.h>
+#include <global_params.h>
+#include <gauss_tools.h>
 
-/*int main(int argc, char* argv[]){
-	int _mNbParticles = 500;
+int main(int argc, char* argv[]){
+	int _mNbParticles = 10;
 	int _mInitRWIterations = 1;
 	char* _ext = ".tif";
 	char folder[INPUT_LENGTH];
 	float _numAp, _lambda;
+	bool verbose = true;
 	printf("Probabilistic Particle Tracker v1.%000d\n\n", getCurrentRevisionNumber(_tagFile, INPUT_LENGTH));
-	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, _ext, folder, _configFile);
+	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder, _configFile, &verbose);
+	checkFileSep(folder);
     string outputDir(folder);
     outputDir.append("/CudaOutput");
     if(!(exists(outputDir))){
@@ -67,11 +76,11 @@
         updateStateVector(firstState, i, _mStateVectors);
     }
     free(candidates.elements);
-    createParticles(_mStateVectors, _mParticles, _currentLength, _mNbParticles);
-    copyStateParticlesToMemory(_mParticlesMemory, _mParticles, 0, _mNbParticles, _currentLength);
-    filterTheInitialization(_mOriginalImage, _mInitRWIterations, _mParticles, _currentLength, _mNbParticles, _mStateVectors);
+    createParticles(_mStateVectors, _mParticles, _currentLength, _mNbParticles, 0);
+    copyStateParticlesToMemory(_mParticlesMemory, _mParticles, 0, _mNbParticles, _currentLength, 0);
+    filterTheInitialization(_mOriginalImage, _mInitRWIterations, _mParticles, _currentLength, _mNbParticles, _mStateVectors, 0);
     copyStateVector(_mStateVectorsMemory, _mStateVectors, 0, _currentLength);
-    runParticleFilter(_mOriginalImage, _mParticles, _mParticlesMemory, _mStateVectors, _mStateVectorsMemory, _counts, _currentLength, _mNbParticles);
+    runParticleFilter(_mOriginalImage, _mParticles, _mParticlesMemory, _mStateVectors, _mStateVectorsMemory, _counts, _currentLength, _mNbParticles, _mInitRWIterations);
 
     printf("\n\n");
     output(dims, frames, outputDir, _mNbParticles, _counts, _mParticlesMemory, _scalefactor);
@@ -79,4 +88,3 @@
 	waitForKey();
     return 0;
 }
-*/

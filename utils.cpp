@@ -144,7 +144,7 @@ int loadImages(Matrix destMatrix, char* ext, vector<path> v, char* folder, int n
     return thisFrame;
 }
 
-void waitForKey(){
+extern void waitForKey(){
 	getchar();
     getchar();
 }
@@ -190,4 +190,18 @@ int getCurrentRevisionNumber(char* filename, int maxline){
 	}
     fclose(fp);
 	return revision;
+}
+
+/*
+* Ensure directory is formatted according to UNIX conventions
+*/
+extern void checkFileSep(char* directory){
+	int i = 0;
+	while(directory[i] != '\0'){
+		if(directory[i] == '\\'){
+			directory[i] = '/';
+		}
+		i++;
+	}
+	return;
 }

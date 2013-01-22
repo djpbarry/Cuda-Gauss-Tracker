@@ -1,5 +1,20 @@
 
 #include <tracker_tools.h>
+#include "stdafx.h"
+#include <matrix.h>
+#include <tracker_utils.h>
+#include <tracker_copy_utils.h>
+#include <cuda_tracker.h>
+#include <defs.h>
+#include <global_params.h>
+#include <gauss_tools.h>
+#include <vector>
+#include <iterator>
+#include <boost/random.hpp>
+#include <boost/random/normal_distribution.hpp>
+#include <boost/math/special_functions/round.hpp>
+
+using namespace boost;
 
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 float _mSigmaOfDynamics[] = {500.0f, 500.0f, 1.0f, 1.0f};
@@ -10,10 +25,10 @@ normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 
-void createParticles(float* aStateVectors, float* aParticles, int _currentLength, int _mNbParticles) {
+void createParticles(float* aStateVectors, float* aParticles, int totalLength, int _mNbParticles, int offset) {
     printf("\nCreating Particles ... %d%%", 0);
-    for (int i = 0; i < _currentLength; i++) {
-        printf("\rCreating Particles ... %d%%", ((i + 1) * 100) / _currentLength);
+    for (int i = offset; i < totalLength; i++) {
+        printf("\rCreating Particles ... %d%%", ((i + 1) * 100) / totalLength);
         int stateVectorIndex = i * DIM_OF_STATE;
         int stateVectorParticleIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
         for (int vIndex = 0; vIndex < _mNbParticles; vIndex++) {
@@ -31,7 +46,7 @@ void createParticles(float* aStateVectors, float* aParticles, int _currentLength
     return;
 }
 
-void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, float* _mParticles,	int _currentLength, int _mNbParticles, float* _mStateVectors) {
+extern void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, float* _mParticles,	int totalLength, int _mNbParticles, float* _mStateVectors, int offset) {
     printf("\nInitialising...");
     float vSigmaOfRWSave[DIM_OF_STATE];
     for (int vI = 0; vI < DIM_OF_STATE; vI++) {
@@ -48,14 +63,14 @@ void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, float* _
 
     for (int vR = 0; vR < aInitPFIterations; vR++) {
         scaleSigmaOfRW(1.0f / powf(3.0f, (float) vR));
-        DrawParticlesWithRW(_mParticles, _currentLength, _mNbParticles);
+        DrawParticlesWithRW(_mParticles, totalLength, _mNbParticles, offset);
 
-        updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
+        updateParticleWeightsOnGPU(frame, _mParticles, totalLength, _mNbParticles, offset);
         //updateParticleWeights(aImageStack, aFrameOfInit);
 
-        estimateStateVectors(_mStateVectors, _mParticles, _currentLength, _mNbParticles);
+        estimateStateVectors(_mStateVectors, _mParticles, totalLength, _mNbParticles, offset);
 
-        resample(_mParticles, _currentLength, _mNbParticles);
+        resample(_mParticles, totalLength, _mNbParticles, offset);
     }
 
     //restore the sigma vector
@@ -72,9 +87,9 @@ void scaleSigmaOfRW(float vScaler) {
     }
 }
 
-void DrawParticlesWithRW(float* aParticles, int _currentLength, int _mNbParticles) {
+void DrawParticlesWithRW(float* aParticles, int totalLength, int _mNbParticles, int offset) {
     //printf("\nDrawing Particles ... %d%%", 0);
-    for (int i = 0; i < _currentLength; i++) {
+    for (int i = offset; i < totalLength; i++) {
         //printf("\rDrawing Particles ... %d%%", ((i + 1) * 100) / _currentLength);
         int stateVectorIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
         for (int j = 0; j < _mNbParticles; j++) {
@@ -142,9 +157,9 @@ void randomWalkProposal(float* aParticles, int offset) {
 */
 //Estimates all state vectors from the particles and their weights
 
-void estimateStateVectors(float* aStateVectors, float* aParticles, int _currentLength, int _mNbParticles) {
+void estimateStateVectors(float* aStateVectors, float* aParticles, int totalLength, int _mNbParticles, int offset) {
     //printf("\nEstimating Vectors ... %d%%", 0);
-    for (int i = 0; i < _currentLength; i++) {
+    for (int i = offset; i < totalLength; i++) {
         //printf("\rEstimating Vectors ... %d%%", ((i+1) * 100)/_currentLength);
         int stateVectorIndex = i * DIM_OF_STATE;
         int stateVectorParticleIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
@@ -170,9 +185,9 @@ void estimateStateVectors(float* aStateVectors, float* aParticles, int _currentL
  * @param aParticles set of parameters to resample.
  * @return true if resampling was performed, false if not.
  */
-bool resample(float* aParticles, int _currentLength, int _mNbParticles) {
+bool resample(float* aParticles, int totalLength, int _mNbParticles, int offset) {
     //printf("\nResampling ... %d%%", 0);
-    for (int i = 0; i < _currentLength; i++) {
+    for (int i = offset; i < totalLength; i++) {
         //printf("\rResampling ... %d%%", ((i+1) * 100)/_currentLength);
         int stateVectorParticleIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
         //
@@ -284,7 +299,7 @@ void generateParticlesIntensityBitmap(float* setOfParticles, int stateVectorInde
 */
 void generateIdealImage(float* particles, int offset, float* vIdealImage, int width, int height) {
     addBackgroundToImage(vIdealImage, BACKGROUND, width, height);
-    addFeaturePointToImage(vIdealImage, particles[offset], particles[offset + 1], particles[offset + 6], width, height);
+    addFeaturePointToImage(vIdealImage, particles[offset + _X_], particles[offset + _Y_], particles[offset + _MAG_], width, height);
     return;
 }
 
@@ -366,7 +381,8 @@ float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage,
     return vLogLikelihood;
 }
 
-void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParticlesMemory, float* _mStateVectors, float* _mStateVectorsMemory, int* _counts, int _currentLength, int _mNbParticles) {
+void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParticlesMemory, float* _mStateVectors, float* _mStateVectorsMemory,
+	int* _counts, int _currentLength, int _mNbParticles, int _mInitRWIterations) {
     printf("\nRunning Particle Filter ... %d%%", 0);
     Matrix frame;
     frame.width = aOriginalImage.width;
@@ -387,27 +403,60 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
         for (int vRepStep = 0; vRepStep < _mRepSteps; vRepStep++) {
             if (vRepStep == 0) {
                 drawNewParticles(_mParticles, _spatialRes, _currentLength, _mNbParticles); //draw the particles at the appropriate position.
-                copyStateParticlesToMemory(_mParticlesMemory, _mParticles, vFrameIndex, _mNbParticles, _currentLength);
+                copyStateParticlesToMemory(_mParticlesMemory, _mParticles, vFrameIndex, _mNbParticles, _currentLength, 0);
             } else {
                 scaleSigmaOfRW(1.0f / powf(3.0f, (float) vRepStep)); //(1f - (float)vRepStep / (float)mRepSteps);
-                DrawParticlesWithRW(_mParticles, _currentLength, _mNbParticles);
+                DrawParticlesWithRW(_mParticles, _currentLength, _mNbParticles, 0);
             }
-            updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles);
+            updateParticleWeightsOnGPU(frame, _mParticles, _currentLength, _mNbParticles, 0);
             //updateParticleWeights(aOriginalImage, vFrameIndex);
-            estimateStateVectors(_mStateVectors, _mParticles, _currentLength, _mNbParticles);
+            estimateStateVectors(_mStateVectors, _mParticles, _currentLength, _mNbParticles, 0);
 
             int killed = checkStateVectors(_mStateVectors, _mParticles, frame.width, frame.height, _currentLength, _mNbParticles);
             _currentLength -= killed;
-            if (!resample(_mParticles, _currentLength, _mNbParticles)) {//further iterations are not necessary.
+            if (!resample(_mParticles, _currentLength, _mNbParticles, 0)) {//further iterations are not necessary.
                 //						System.out.println("number of iterations needed at this frame: " + vRepStep);
                 break;
             }
         }
         //restore the sigma vector
-        for (int vI = 0; vI < DIM_OF_STATE; vI++) {
-            _mSigmaOfRandomWalk[vI] = vSigmaOfRWSave[vI];
+        for (int dI = 0; dI < DIM_OF_STATE; dI++) {
+            _mSigmaOfRandomWalk[dI] = vSigmaOfRWSave[dI];
         }
-        //save the new states
+		//Generate residual image to detect potential new targets to track
+		for (int vI = 0; vI < _currentLength; vI++){
+			int vectorIndex = vI * DIM_OF_STATE;
+			float x = _mStateVectors[vectorIndex + _X_];
+			float y = _mStateVectors[vectorIndex + _Y_];
+			float mag = _mStateVectors[vectorIndex + _MAG_];
+			addFeaturePointToImage(frame.elements, x, y, -mag, frame.width, frame.height);
+		}
+		Matrix candidates;
+		candidates.width = FIT_SIZE * MAX_DETECTIONS;
+		candidates.stride = candidates.width;
+		candidates.height = FIT_SIZE + DATA_ROWS;
+		candidates.size = candidates.width * candidates.height;
+		candidates.elements = (float*) malloc(sizeof (float) * candidates.size);
+		
+		// Find local maxima and use to initialise state vectors
+		bool warnings[2];
+		int newObjects = maxFinder(frame, candidates, _maxThresh, true, 0, 0, 0, FIT_RADIUS, warnings);
+        
+		for (int i = 0; i < newObjects; i++) {
+			float x = candidates.elements[i];
+			float y = candidates.elements[i + candidates.stride];
+			float mag = candidates.elements[i * FIT_SIZE + FIT_RADIUS + candidates.stride * (HEADER + FIT_RADIUS)];
+			float firstState[] = {x, y, 0.0f, 0.0f, 0.0f, 0.0f, mag};
+			updateStateVector(firstState, i + _currentLength, _mStateVectors);
+		}
+		free(candidates.elements);
+		createParticles(_mStateVectors, _mParticles, _currentLength + newObjects, _mNbParticles, _currentLength);
+		copyStateParticlesToMemory(_mParticlesMemory, _mParticles, 0, _mNbParticles, _currentLength + newObjects, _currentLength);
+		filterTheInitialization(aOriginalImage, _mInitRWIterations, _mParticles, _currentLength + newObjects, _mNbParticles, _mStateVectors, _currentLength);
+
+		_currentLength += newObjects;
+
+		//save the new states
         copyStateVector(_mStateVectorsMemory, _mStateVectors, vFrameIndex, _currentLength);
         _counts[vFrameIndex] = _currentLength;
     }

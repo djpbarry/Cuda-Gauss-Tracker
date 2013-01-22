@@ -1,11 +1,20 @@
 #ifndef _DEFS_
 #define _DEFS_
 
+//Format of vector for tracker = {_X_, _Y_, _Z_, _X_VEL_, _Y_VEL_, _Z_VEL_, _MAG_}
+#define _X_ 0
+#define _Y_ 1
+#define _Z_ 2
+#define _X_VEL_ 3
+#define _Y_VEL_ 4
+#define _Z_VEL_ 5
+#define _MAG_ 6
+
 #define NUM_PARAMS 7
 #define N_MAX 1
 #define MAX_DETECTIONS 200
-#define FIT_RADIUS 7
-#define FIT_SIZE 15
+#define FIT_RADIUS 3
+#define FIT_SIZE 7
 #define SEARCH_RADIUS 1
 #define STEP_TOL 2000
 #define ITERATIONS 100

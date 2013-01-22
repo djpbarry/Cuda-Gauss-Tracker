@@ -19,10 +19,10 @@ using namespace cv;
 
 void runDetector();
 
-int main(int argc, char* argv[]) {
+/*int main(int argc, char* argv[]) {
     runDetector();
     return 0;
-}
+}*/
 
 void runDetector() {
 	float _2sig2, _sig2, _numAp, _lambda;

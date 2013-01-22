@@ -9,6 +9,7 @@
 #include "device_launch_parameters.h"
 #include <global_params.h>
 #include <cuda_tracker.h>
+#include <tracker_copy_utils.h>
 
 __global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float* logLikelihoods, float vVarianceXYinPx);
 
@@ -23,8 +24,8 @@ __global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float
 * @param currentLength the current number of objects being tracked
 * @param nbParticles the number of particles for each object
 */
-extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int currentLength, int nbParticles){
-	if (!(currentLength > 0)) return;
+extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int totalLength, int nbParticles, int offset){
+	if (!(totalLength - offset > 0)) return;
 	float vVarianceXYinPx = _sigmaEstPix * _sigmaEstPix / (_spatialRes * _spatialRes);
 	cudaSetDevice(0);
 	checkCudaError();
@@ -41,7 +42,7 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 	cudaMemcpy(d_observation.elements, observation.elements, observationSize, cudaMemcpyHostToDevice);
 	checkCudaError();
 
-	int totalParticles = currentLength * nbParticles;
+	int totalParticles = (totalLength - offset) * nbParticles;
 	int numblocks = totalParticles / BLOCK_SIZE_X;
 	if (numblocks * BLOCK_SIZE_X < totalParticles) numblocks++;
 	if (numblocks % 2 != 0) numblocks++;
@@ -49,16 +50,24 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 	// Particles on GPU device
 	float* d_mParticles;
 	size_t cudaParticlesSize = numblocks * BLOCK_SIZE_X * (DIM_OF_STATE + 1) * sizeof(float);
-	size_t hostParticlesSize = currentLength * nbParticles * (DIM_OF_STATE + 1) * sizeof(float);
+	size_t hostParticlesSize = (totalLength - offset) * nbParticles * (DIM_OF_STATE + 1) * sizeof(float);
 	cudaMalloc(&d_mParticles, cudaParticlesSize);
 	checkCudaError();
-	cudaMemcpy(d_mParticles, mParticles, hostParticlesSize, cudaMemcpyHostToDevice);
+
+	//May not be a need to calculate all log likelihoods
+	float* particlesCopy = (float*) malloc(sizeof(float) * (totalLength - offset) * nbParticles * (DIM_OF_STATE + 1));
+	for(int iP = offset; iP < totalLength; iP++){
+		int stateVectorParticleIndex = iP * nbParticles * (DIM_OF_STATE + 1);
+		copyStateParticles(particlesCopy, mParticles, stateVectorParticleIndex, nbParticles);
+	}
+
+	cudaMemcpy(d_mParticles, particlesCopy, hostParticlesSize, cudaMemcpyHostToDevice);
 	checkCudaError();
 
 	// Log likelihoods on GPU device
 	float* d_vLogLikelihoods;
 	size_t cudalogLikelihoodsSize = numblocks * BLOCK_SIZE_X * sizeof(float);
-	size_t hostlogLikelihoodsSize = currentLength * nbParticles * sizeof(float);
+	size_t hostlogLikelihoodsSize = (totalLength - offset) * nbParticles * sizeof(float);
 	cudaMalloc(&d_vLogLikelihoods, cudalogLikelihoodsSize);
 	checkCudaError();
 
@@ -67,10 +76,16 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 
 	LogLikelihoodKernel<<<dimGrid, dimBlock>>>(d_observation, d_mParticles, d_vLogLikelihoods, vVarianceXYinPx);
 
-	cudaMemcpy(mParticles, d_mParticles, hostParticlesSize, cudaMemcpyDeviceToHost);
+	cudaMemcpy(particlesCopy, d_mParticles, hostParticlesSize, cudaMemcpyDeviceToHost);
 	checkCudaError();
 
-	float* vLogLikelihoods = (float*)malloc(sizeof(float) * nbParticles * currentLength);
+	for(int iP = offset; iP < totalLength; iP++){
+		int stateVectorParticleIndex = iP * nbParticles * (DIM_OF_STATE + 1);
+		copyStateParticles(mParticles, particlesCopy, stateVectorParticleIndex, nbParticles);
+	}
+	free(particlesCopy);
+
+	float* vLogLikelihoods = (float*)malloc(sizeof(float) * nbParticles * (totalLength - offset));
 
 	cudaMemcpy(vLogLikelihoods, d_vLogLikelihoods, hostlogLikelihoodsSize, cudaMemcpyDeviceToHost);
 	checkCudaError();
@@ -83,7 +98,7 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 	cudaDeviceReset();
 	checkCudaError();
 
-	for(int i=0; i < currentLength; i++){
+	for(int i=offset; i < totalLength; i++){
 		int logStateIndex = i * nbParticles;
 		int stateVectorIndex = i * nbParticles * (DIM_OF_STATE + 1);
         float vSumOfWeights = 0.0f;

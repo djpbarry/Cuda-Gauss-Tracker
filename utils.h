@@ -26,5 +26,6 @@ extern int loadImages(Matrix destMatrix, char* ext, vector<path> v, char* folder
 extern void waitForKey();
 extern void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, float* _maxThresh, char* _ext, char* folder, char* file, bool* verbose);
 extern int getCurrentRevisionNumber(char* filename, int maxline);
+extern void checkFileSep(char* directory);
 
 #endif
