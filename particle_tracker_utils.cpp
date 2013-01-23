@@ -6,7 +6,7 @@
 #include <boost/random.hpp>
 
 void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _counts, float* _mParticlesMemory, int _scalefactor) {
-    printf("\nBuilding output ... %d%%", 0);
+    printf("Building output ... %d%%", 0);
     Matrix output;
     output.width = dims[0] * _scalefactor;
     output.stride = output.width;

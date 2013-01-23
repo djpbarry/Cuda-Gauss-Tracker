@@ -17,7 +17,7 @@
 using namespace boost;
 
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-float _mSigmaOfDynamics[] = {500.0f, 500.0f, 1.0f, 1.0f};
+float _mSigmaOfDynamics[] = {100.0f, 100.0f, 1.0f, 1.0f};
 int _mResamplingThreshold = 250;
 int _mRepSteps = 5;
 
@@ -26,9 +26,9 @@ mt19937 rng;
 variate_generator<mt19937, normal_distribution<float> > var_nor(rng, _dist);
 
 void createParticles(float* aStateVectors, float* aParticles, int totalLength, int _mNbParticles, int offset) {
-    printf("\nCreating Particles ... %d%%", 0);
+    //printf("\nCreating Particles ... %d%%", 0);
     for (int i = offset; i < totalLength; i++) {
-        printf("\rCreating Particles ... %d%%", ((i + 1) * 100) / totalLength);
+        //printf("\rCreating Particles ... %d%%", ((i + 1) * 100) / totalLength);
         int stateVectorIndex = i * DIM_OF_STATE;
         int stateVectorParticleIndex = i * _mNbParticles * (DIM_OF_STATE + 1);
         for (int vIndex = 0; vIndex < _mNbParticles; vIndex++) {
@@ -47,7 +47,7 @@ void createParticles(float* aStateVectors, float* aParticles, int totalLength, i
 }
 
 extern void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, float* _mParticles,	int totalLength, int _mNbParticles, float* _mStateVectors, int offset) {
-    printf("\nInitialising...");
+    //printf("\nInitialising...");
     float vSigmaOfRWSave[DIM_OF_STATE];
     for (int vI = 0; vI < DIM_OF_STATE; vI++) {
         vSigmaOfRWSave[vI] = _mSigmaOfRandomWalk[vI];
@@ -384,7 +384,7 @@ float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage,
 
 void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParticlesMemory, float* _mStateVectors, float* _mStateVectorsMemory,
 	int* _counts, int _currentLength, int _mNbParticles, int _mInitRWIterations) {
-    printf("\nRunning Particle Filter ... %d%%", 0);
+    printf("\n\nRunning Particle Filter ... %d%%", 0);
     Matrix frame;
     frame.width = aOriginalImage.width;
     frame.height = aOriginalImage.height;
@@ -454,7 +454,7 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
 		// Find local maxima and use to initialise state vectors
 		bool warnings[2];
 		int newObjects = maxFinder(frame, candidates, _maxThresh, true, 0, 0, 0, FIT_RADIUS, warnings);
-        
+
 		for (int i = 0; i < newObjects; i++) {
 			float x = candidates.elements[i];
 			float y = candidates.elements[i + candidates.stride];

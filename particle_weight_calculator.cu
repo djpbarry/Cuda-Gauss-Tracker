@@ -10,6 +10,7 @@
 #include <global_params.h>
 #include <cuda_tracker.h>
 #include <tracker_copy_utils.h>
+#include <crtdbg.h>
 
 __global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float* logLikelihoods, float vVarianceXYinPx);
 
@@ -73,7 +74,7 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 	cudaMemcpy(&mParticles[stateVectorParticleIndex], d_mParticles, hostParticlesSize, cudaMemcpyDeviceToHost);
 	checkCudaError();
 
-	float* vLogLikelihoods = (float*)malloc(sizeof(float) * nbParticles * (totalLength - offset));
+	float* vLogLikelihoods = (float*)malloc(hostlogLikelihoodsSize);
 	cudaMemcpy(vLogLikelihoods, d_vLogLikelihoods, hostlogLikelihoodsSize, cudaMemcpyDeviceToHost);
 	checkCudaError();
 
@@ -86,7 +87,7 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 	checkCudaError();
 
 	for(int i=offset; i < totalLength; i++){
-		int logStateIndex = i * nbParticles;
+		int logStateIndex = (i - offset) * nbParticles;
 		int stateVectorIndex = i * nbParticles * (DIM_OF_STATE + 1);
         float vSumOfWeights = 0.0f;
         //
@@ -96,6 +97,7 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
         for (int vI = 0; vI < nbParticles; vI++) {
             if (vLogLikelihoods[logStateIndex + vI] > vMaxLogLikelihood) {
                 vMaxLogLikelihood = vLogLikelihoods[logStateIndex + vI];
+				_ASSERTE( _CrtCheckMemory( ) );
             }
         }
         //_mMaxLogLikelihood[aFrameIndex - 1] = vMaxLogLikelihood;
@@ -107,6 +109,7 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 			int particleWeightIndex = stateVectorIndex + vI * (DIM_OF_STATE + 1) + DIM_OF_STATE;
             mParticles[particleWeightIndex] = mParticles[particleWeightIndex] * expf(vLogLikelihoods[logStateIndex + vI]);
             vSumOfWeights += mParticles[particleWeightIndex];
+			_ASSERTE( _CrtCheckMemory( ) );
         }
         //
         // Iterate again and normalize the weights
@@ -114,10 +117,12 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
         if (vSumOfWeights == 0.0f) { //can happen if the winning particle before had a weight of 0.0
 			for (int vI = 0; vI < nbParticles; vI++) {
                 mParticles[stateVectorIndex + vI * (DIM_OF_STATE+1) + DIM_OF_STATE] = 1.0f / (float)nbParticles;
+				_ASSERTE( _CrtCheckMemory( ) );
             }
         } else {
 			for (int vI = 0; vI < nbParticles; vI++) {
                 mParticles[stateVectorIndex + vI * (DIM_OF_STATE+1) + DIM_OF_STATE] /= vSumOfWeights;
+				_ASSERTE( _CrtCheckMemory( ) );
             }
         }
     }
