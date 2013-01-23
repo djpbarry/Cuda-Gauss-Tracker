@@ -54,14 +54,8 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 	cudaMalloc(&d_mParticles, cudaParticlesSize);
 	checkCudaError();
 
-	//May not be a need to calculate all log likelihoods
-	float* particlesCopy = (float*) malloc(sizeof(float) * (totalLength - offset) * nbParticles * (DIM_OF_STATE + 1));
-	for(int iP = offset; iP < totalLength; iP++){
-		int stateVectorParticleIndex = iP * nbParticles * (DIM_OF_STATE + 1);
-		copyStateParticles(particlesCopy, mParticles, stateVectorParticleIndex, nbParticles);
-	}
-
-	cudaMemcpy(d_mParticles, particlesCopy, hostParticlesSize, cudaMemcpyHostToDevice);
+	int stateVectorParticleIndex = offset * nbParticles * (DIM_OF_STATE + 1);
+	cudaMemcpy(d_mParticles, &mParticles[stateVectorParticleIndex], hostParticlesSize, cudaMemcpyHostToDevice);
 	checkCudaError();
 
 	// Log likelihoods on GPU device
@@ -76,17 +70,10 @@ extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles
 
 	LogLikelihoodKernel<<<dimGrid, dimBlock>>>(d_observation, d_mParticles, d_vLogLikelihoods, vVarianceXYinPx);
 
-	cudaMemcpy(particlesCopy, d_mParticles, hostParticlesSize, cudaMemcpyDeviceToHost);
+	cudaMemcpy(&mParticles[stateVectorParticleIndex], d_mParticles, hostParticlesSize, cudaMemcpyDeviceToHost);
 	checkCudaError();
 
-	for(int iP = offset; iP < totalLength; iP++){
-		int stateVectorParticleIndex = iP * nbParticles * (DIM_OF_STATE + 1);
-		copyStateParticles(mParticles, particlesCopy, stateVectorParticleIndex, nbParticles);
-	}
-	free(particlesCopy);
-
 	float* vLogLikelihoods = (float*)malloc(sizeof(float) * nbParticles * (totalLength - offset));
-
 	cudaMemcpy(vLogLikelihoods, d_vLogLikelihoods, hostlogLikelihoodsSize, cudaMemcpyDeviceToHost);
 	checkCudaError();
 

@@ -1,7 +1,7 @@
 
 #include <tracker_tools.h>
 #include "stdafx.h"
-#include <matrix.h>
+#include <matrix_mat.h>
 #include <tracker_utils.h>
 #include <tracker_copy_utils.h>
 #include <cuda_tracker.h>
@@ -332,6 +332,7 @@ void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, i
         int woffset = vY * width;
         for (int vX = vXStart; vX <= vXEnd && vX < width; vX++) {
             aImage[woffset + vX] += (aIntensity * expf(-(powf(vX - x + .5f, 2.0f) + powf(vY - y + .5f, 2.0f)) / (2.0f * vVarianceXYinPx)));
+			if(aImage[woffset + vX] < 0.0f) aImage[woffset + vX] = 0.0f;
         }
     }
 }
@@ -423,6 +424,7 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
         for (int dI = 0; dI < DIM_OF_STATE; dI++) {
             _mSigmaOfRandomWalk[dI] = vSigmaOfRWSave[dI];
         }
+
 		//Generate residual image to detect potential new targets to track
 		for (int vI = 0; vI < _currentLength; vI++){
 			int vectorIndex = vI * DIM_OF_STATE;
@@ -431,6 +433,17 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
 			float mag = _mStateVectors[vectorIndex + _MAG_];
 			addFeaturePointToImage(frame.elements, x, y, -mag, frame.width, frame.height);
 		}
+
+		//[DEBUG]
+		Mat cudasaveframe(frame.height*_scalefactor, frame.width*_scalefactor, CV_32F);
+		copyFromMatrix(cudasaveframe, frame, 0, 1.0f);
+		cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
+		string savefilename("C:/users/barry05/Desktop/Tracker_Debug_Output/");
+		savefilename.append(boost::lexical_cast<string > (vFrameIndex));
+		savefilename.append(PNG);
+		imwrite(savefilename, cudasaveframe);
+		//[/DEBUG]
+
 		Matrix candidates;
 		candidates.width = FIT_SIZE * MAX_DETECTIONS;
 		candidates.stride = candidates.width;

@@ -9,7 +9,7 @@
 #include <gauss_tools.h>
 
 int main(int argc, char* argv[]){
-	int _mNbParticles = 10;
+	int _mNbParticles = 1000;
 	int _mInitRWIterations = 1;
 	char* _ext = ".tif";
 	char folder[INPUT_LENGTH];
