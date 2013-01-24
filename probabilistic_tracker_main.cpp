@@ -9,7 +9,7 @@
 #include <gauss_tools.h>
 
 int main(int argc, char* argv[]){
-	int _mNbParticles = 1000;
+	int _mNbParticles = 100;
 	int _mInitRWIterations = 1;
 	char* _ext = ".tif";
 	char folder[INPUT_LENGTH];
@@ -84,7 +84,7 @@ int main(int argc, char* argv[]){
 		runParticleFilter(_mOriginalImage, _mParticles, _mParticlesMemory, _mStateVectors, _mStateVectorsMemory, _counts, _currentLength, _mNbParticles, _mInitRWIterations);
 
 		printf("\n\n");
-		output(dims, frames, outputDir, _mNbParticles, _counts, _mParticlesMemory, _scalefactor);
+		output(dims, frames, outputDir, _mNbParticles, _counts, _mParticlesMemory, _mStateVectorsMemory, _scalefactor);
 		printf("\n\nElapsed Time: %.3f s\n", ((float)(clock() - start))/1000.0f);
 	} else {
 		printf("\n\nFailed to allocate sufficient memory - aborting.");
