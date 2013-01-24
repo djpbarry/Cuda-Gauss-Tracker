@@ -57,7 +57,8 @@ int main(int argc, char* argv[]){
 	//float* _mMaxLogLikelihood = (float*)malloc(sizeof(float) * _mOriginalImage.depth);
     int* _counts = (int*)malloc(sizeof(int) * _mOriginalImage.depth);
 
-	if(!(_mParticlesMemory == NULL) && !(_mParticles == NULL) && !(_mStateVectorsMemory == NULL) && !(_mStateVectors == NULL) && !(_counts == NULL)){
+	if(!(_mParticlesMemory == NULL) && !(_mParticles == NULL) && !(_mStateVectorsMemory == NULL)
+		&& !(_mStateVectors == NULL) && !(_counts == NULL)){
 		Matrix candidates;
 
 		// Find local maxima and use to initialise state vectors
@@ -84,7 +85,7 @@ int main(int argc, char* argv[]){
 		runParticleFilter(_mOriginalImage, _mParticles, _mParticlesMemory, _mStateVectors, _mStateVectorsMemory, _counts, _currentLength, _mNbParticles, _mInitRWIterations);
 
 		printf("\n\n");
-		output(dims, frames, outputDir, _mNbParticles, _counts, _mParticlesMemory, _mStateVectorsMemory, _scalefactor);
+		output(dims, frames, outputDir, _mNbParticles, _counts, _mParticlesMemory, _mStateVectorsMemory, _scalefactor, verbose);
 		printf("\n\nElapsed Time: %.3f s\n", ((float)(clock() - start))/1000.0f);
 	} else {
 		printf("\n\nFailed to allocate sufficient memory - aborting.");

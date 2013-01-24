@@ -413,8 +413,8 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
             //updateParticleWeights(aOriginalImage, vFrameIndex);
             estimateStateVectors(_mStateVectors, _mParticles, _currentLength, _mNbParticles, 0);
 
-            int killed = checkStateVectors(_mStateVectors, _mParticles, frame.width, frame.height, _currentLength, _mNbParticles);
-            _currentLength -= killed;
+            //int killed = checkStateVectors(_mStateVectors, _mParticles, frame.width, frame.height, _currentLength, _mNbParticles);
+            //_currentLength -= killed;
             if (!resample(_mParticles, _currentLength, _mNbParticles, 0)) {//further iterations are not necessary.
                 //						System.out.println("number of iterations needed at this frame: " + vRepStep);
                 break;

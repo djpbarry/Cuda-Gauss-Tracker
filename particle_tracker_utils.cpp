@@ -6,8 +6,18 @@
 #include <defs.h>
 #include <boost/random.hpp>
 
-void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _counts, float* _mParticlesMemory, float* _mStateVectorsMemory, int _scalefactor) {
-    printf("Building output ... %d%%", 0);
+void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _counts, float* _mParticlesMemory, float* _mStateVectorsMemory, int _scalefactor, bool verbose) {
+    FILE *datafile;
+    FILE **datafilepointer = &datafile;
+	const char* datafilename = (outputDir.append("/tracker_data.txt")).data();
+	fopen_s(datafilepointer, datafilename, "w");
+	fprintf(datafile, "  ");
+	for(int index = 0; index < _counts[frames - 1]; index++){
+		fprintf(datafile, "%d ", index);
+	}
+	fprintf(datafile, "\n");
+
+	printf("Building output ... %d%%", 0);
     Matrix output;
     output.width = dims[0] * _scalefactor;
     output.stride = output.width;
@@ -17,6 +27,7 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
 
     for (int frameIndex = 0; frameIndex < frames; frameIndex++) {
         printf("\rBuilding output ... %d%%", (frameIndex + 1) * 100 / frames);
+		fprintf(datafile, "%d ", frameIndex);
         //int stateVectorFrameIndex = frameIndex * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1);
 		int stateVectorFrameIndex = frameIndex * MAX_DETECTIONS * DIM_OF_STATE;
         for (int p = 0; p < output.width * output.height; p++) {
@@ -26,9 +37,11 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
         for (int i = 0; i < _counts[frameIndex]; i++) {
             //int stateVectorIndex = stateVectorFrameIndex + i * _mNbParticles * (DIM_OF_STATE + 1);
 			int stateVectorIndex = stateVectorFrameIndex + i * DIM_OF_STATE;
-            addFeaturePointToImage(output.elements, _mStateVectorsMemory[stateVectorIndex + _X_] * _scalefactor,
-                    _mStateVectorsMemory[stateVectorIndex + _Y_] * _scalefactor,
-                    _mStateVectorsMemory[stateVectorIndex + _MAG_], output.width, output.height);
+			float x = _mStateVectorsMemory[stateVectorIndex + _X_];
+			float y = _mStateVectorsMemory[stateVectorIndex + _Y_];
+			float mag = _mStateVectorsMemory[stateVectorIndex + _MAG_];
+            addFeaturePointToImage(output.elements, x * _scalefactor, y * _scalefactor, mag, output.width, output.height);
+			fprintf(datafile, "%f,%f,%f ", x, y, mag);
             /*
 			[DEBUG]
 			for (int j = 0; j < _mNbParticles; j++) {
@@ -44,17 +57,25 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
 			[/DEBUG]
 			*/
         }
+		fprintf(datafile, "\n");
         copyFromMatrix(cudasaveframe, output, 0, 1.0f);
-        /*for(int j = 0; j < frameIndex; j++){
-                int stateVectorFrameIndex = j * MAX_DETECTIONS * DIM_OF_STATE;
+        for(int j = 1; j < frameIndex; j++){
+                int stateVectorLastFrameIndex = (j - 1) * MAX_DETECTIONS * DIM_OF_STATE;
+				int stateVectorNextFrameIndex = j * MAX_DETECTIONS * DIM_OF_STATE;
                 for(int k = 0; k < _counts[j]; k++){
-                        int stateVectorIndex = stateVectorFrameIndex + k * DIM_OF_STATE;
-						int x1 = (int) boost::math::round<float>(_mStateVectorsMemory[stateVectorIndex + _X_] * _scalefactor);
-						int y1 = (int) boost::math::round<float>(_mStateVectorsMemory[stateVectorIndex + _Y_] * _scalefactor);
-						//line(Mat& img, Point pt1, Point pt2, const Scalar& color);
-                        circle(cudasaveframe, centre, FIT_RADIUS, 255);
+                        int stateVectorLastIndex = stateVectorLastFrameIndex + k * DIM_OF_STATE;
+						int stateVectorNextIndex = stateVectorNextFrameIndex + k * DIM_OF_STATE;
+						float x1 = _mStateVectorsMemory[stateVectorLastIndex + _X_];
+						float y1 = _mStateVectorsMemory[stateVectorLastIndex + _Y_];
+						float x2 = _mStateVectorsMemory[stateVectorNextIndex + _X_];
+						float y2 = _mStateVectorsMemory[stateVectorNextIndex + _Y_];
+						if(x1 > 0.0f && x1 < output.width && x2 > 0.0f && x2 < output.width && y1 > 0.0f && y1 < output.width && y2 > 0.0f && y2 < output.width){
+							Point pt1((int) boost::math::round<float>(x1 * _scalefactor), (int) boost::math::round<float>(y1 * _scalefactor));
+							Point pt2((int) boost::math::round<float>(x2 * _scalefactor), (int) boost::math::round<float>(y2 * _scalefactor));
+							line(cudasaveframe, pt1, pt2, Scalar(255, 255, 255));
+						}
                 }
-        }*/
+        }
         cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
         string savefilename(outputDir);
         savefilename.append("/");
@@ -62,5 +83,6 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
         savefilename.append(".tif");
         imwrite(savefilename, cudasaveframe);
     }
+	fclose(datafile);
     return;
 }

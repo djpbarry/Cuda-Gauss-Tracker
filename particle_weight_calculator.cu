@@ -134,17 +134,25 @@ __global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float
 	int radius = 2 * FIT_RADIUS;
 	int particleIndex =  blockIdx.x * blockDim.x + threadIdx.x;
 	int particleOffset  = particleIndex * (DIM_OF_STATE + 1);
-	float x = mParticles[particleOffset];
-	float y = mParticles[particleOffset + 1];
-	float mag = mParticles[particleOffset + 6];
+	float x = mParticles[particleOffset + _X_];
+	float y = mParticles[particleOffset + _Y_];
+	float mag = mParticles[particleOffset + _MAG_];
 	int startX = (int)rintf(x - radius);
 	int endX = (int)rintf(x + radius);
 	int startY = (int)rintf(y - radius);
 	int endY = (int)rintf(y + radius);
+
 	if(startX < 0) startX = 0;
+	else if(startX > observation.width - 1) startX = observation.width - 1;
+
 	if(endX > observation.width - 1) endX = observation.width - 1;
+	else if(endX < 0) endX = 0;
+
 	if(startY < 0) startY = 0;
+	else if(startY > observation.height - 1) startY = observation.height - 1;
+
 	if(endY > observation.height - 1) endY = observation.height - 1;
+	else if(endY < 0) endY = 0;
 
 	float vLogLikelihood = 0.0f;
 	for (int vY = startY; vY <= endY; vY++) {

@@ -9,7 +9,6 @@
 #define _Y_VEL_ 4
 #define _Z_VEL_ 5
 #define _MAG_ 6
-#define _IS_ALIVE_ 7
 
 #define NUM_PARAMS 7
 #define N_MAX 1
