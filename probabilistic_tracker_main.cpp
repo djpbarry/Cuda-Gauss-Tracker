@@ -8,7 +8,7 @@
 #include <global_params.h>
 #include <gauss_tools.h>
 
-int main(int argc, char* argv[]){
+/*int main(int argc, char* argv[]){
 	int _mNbParticles = 100;
 	int _mInitRWIterations = 1;
 	char* _ext = ".tif";
@@ -93,3 +93,4 @@ int main(int argc, char* argv[]){
 	waitForKey();
     return 0;
 }
+*/

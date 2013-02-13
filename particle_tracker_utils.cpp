@@ -9,14 +9,9 @@
 void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _counts, float* _mParticlesMemory, float* _mStateVectorsMemory, int _scalefactor, bool verbose) {
     FILE *datafile;
     FILE **datafilepointer = &datafile;
-	const char* datafilename = (outputDir.append("/tracker_data.txt")).data();
+	string dataOutputDir(outputDir);
+	const char* datafilename = (dataOutputDir.append("/tracker_data.txt")).data();
 	fopen_s(datafilepointer, datafilename, "w");
-	fprintf(datafile, "  ");
-	for(int index = 0; index < _counts[frames - 1]; index++){
-		fprintf(datafile, "%d ", index);
-	}
-	fprintf(datafile, "\n");
-
 	printf("Building output ... %d%%", 0);
     Matrix output;
     output.width = dims[0] * _scalefactor;
@@ -25,23 +20,31 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
     output.size = output.width * output.height;
     output.elements = (float*) malloc(sizeof (float) * output.size);
 
+	fprintf(datafile, "FRAMES %d\n", frames);
+	fprintf(datafile, "TRAJECTORIES %d\n", _counts[frames - 1]);
+	fprintf(datafile, "WIDTH %d\n", dims[0]);
+	fprintf(datafile, "HEIGHT %d\n", dims[1]);
+
     for (int frameIndex = 0; frameIndex < frames; frameIndex++) {
         printf("\rBuilding output ... %d%%", (frameIndex + 1) * 100 / frames);
-		fprintf(datafile, "%d ", frameIndex);
         //int stateVectorFrameIndex = frameIndex * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1);
 		int stateVectorFrameIndex = frameIndex * MAX_DETECTIONS * DIM_OF_STATE;
         for (int p = 0; p < output.width * output.height; p++) {
             output.elements[p] = 0.0f;
         }
         Mat cudasaveframe(dims[1] * _scalefactor, dims[0] * _scalefactor, CV_32F);
-        for (int i = 0; i < _counts[frameIndex]; i++) {
+         for (int i = 0; i < _counts[frameIndex]; i++) {
             //int stateVectorIndex = stateVectorFrameIndex + i * _mNbParticles * (DIM_OF_STATE + 1);
 			int stateVectorIndex = stateVectorFrameIndex + i * DIM_OF_STATE;
 			float x = _mStateVectorsMemory[stateVectorIndex + _X_];
 			float y = _mStateVectorsMemory[stateVectorIndex + _Y_];
 			float mag = _mStateVectorsMemory[stateVectorIndex + _MAG_];
             addFeaturePointToImage(output.elements, x * _scalefactor, y * _scalefactor, mag, output.width, output.height);
-			fprintf(datafile, "%f,%f,%f ", x, y, mag);
+			if(x >= 0.0 && y >= 0.0 && x < dims[0] && y < dims[1]){
+				fprintf(datafile, "%f %f %f ", x, y, mag);
+			} else {
+				fprintf(datafile, "-1.0 -1.0 -1.0 ");
+			}
             /*
 			[DEBUG]
 			for (int j = 0; j < _mNbParticles; j++) {
@@ -57,6 +60,9 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
 			[/DEBUG]
 			*/
         }
+		for (int j = _counts[frameIndex]; j < _counts[frames - 1]; j++){
+			fprintf(datafile, "-1.0 -1.0 -1.0 ");
+		}
 		fprintf(datafile, "\n");
         copyFromMatrix(cudasaveframe, output, 0, 1.0f);
         for(int j = 1; j < frameIndex; j++){

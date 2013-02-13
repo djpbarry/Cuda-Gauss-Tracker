@@ -11,8 +11,8 @@
 #define _MAG_ 6
 
 #define NUM_PARAMS 7
-#define N_MAX 1
-#define MAX_DETECTIONS 100
+#define N_MAX 3
+#define MAX_DETECTIONS 200
 #define FIT_RADIUS 3
 #define FIT_SIZE 7
 #define SEARCH_RADIUS 1
