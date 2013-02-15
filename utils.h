@@ -24,7 +24,7 @@ extern void getDims(vector<path> v, const char* ext, int* dims);
 extern bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder);
 extern int loadImages(Matrix destMatrix, char* ext, vector<path> v, char* folder, int numFiles, bool prompt);
 extern void waitForKey();
-extern void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, float* _maxThresh, char* _ext, char* folder, char* file, bool* verbose);
+extern void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, float* _maxThresh, char* _ext, char* folder_c1, char* folder_c2, char* file, bool* verbose);
 extern int getCurrentRevisionNumber(char* filename, int maxline);
 extern void checkFileSep(char* directory);
 

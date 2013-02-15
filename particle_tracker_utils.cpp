@@ -4,9 +4,11 @@
 #include <tracker_tools.h>
 #include <matrix_mat.h>
 #include <defs.h>
+#include <gauss_tools.h>
 #include <boost/random.hpp>
 
-void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _counts, float* _mParticlesMemory, float* _mStateVectorsMemory, int _scalefactor, bool verbose) {
+void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _counts, float* _mParticlesMemory, float* _mStateVectorsMemory, int _scalefactor,
+	Matrix _mOriginalImage_c2, bool verbose, float _maxThresh) {
     FILE *datafile;
     FILE **datafilepointer = &datafile;
 	string dataOutputDir(outputDir);
@@ -24,6 +26,9 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
 	fprintf(datafile, "TRAJECTORIES %d\n", _counts[frames - 1]);
 	fprintf(datafile, "WIDTH %d\n", dims[0]);
 	fprintf(datafile, "HEIGHT %d\n", dims[1]);
+	fprintf(datafile, "DIM %d\n", 4);
+
+	bool mono = !(_mOriginalImage_c2.size > 0);
 
     for (int frameIndex = 0; frameIndex < frames; frameIndex++) {
         printf("\rBuilding output ... %d%%", (frameIndex + 1) * 100 / frames);
@@ -39,11 +44,21 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
 			float x = _mStateVectorsMemory[stateVectorIndex + _X_];
 			float y = _mStateVectorsMemory[stateVectorIndex + _Y_];
 			float mag = _mStateVectorsMemory[stateVectorIndex + _MAG_];
+			float multi = -1.0;
+			if(!mono){
+				Matrix dummy;
+				dummy.size = 0;
+				dummy.elements = NULL;
+				int point[2];
+				point[0] = (int)boost::math::round<float>(x);
+				point[1] = (int)boost::math::round<float>(y);
+				multi = (maxFinder(point, _mOriginalImage_c2, dummy, 25.0, true, 0, 0, frameIndex, FIT_RADIUS, new bool[2], false) > 0) ? 1.0f : -1.0f;
+			}
             addFeaturePointToImage(output.elements, x * _scalefactor, y * _scalefactor, mag, output.width, output.height);
 			if(x >= 0.0 && y >= 0.0 && x < dims[0] && y < dims[1]){
-				fprintf(datafile, "%f %f %f ", x, y, mag);
+				fprintf(datafile, "%f %f %f %f ", x, y, mag, multi);
 			} else {
-				fprintf(datafile, "-1.0 -1.0 -1.0 ");
+				fprintf(datafile, "-1.0 -1.0 -1.0 -1.0 ");
 			}
             /*
 			[DEBUG]
@@ -61,7 +76,7 @@ void output(int* dims, int frames, string outputDir, int _mNbParticles, int* _co
 			*/
         }
 		for (int j = _counts[frameIndex]; j < _counts[frames - 1]; j++){
-			fprintf(datafile, "-1.0 -1.0 -1.0 ");
+			fprintf(datafile, "-1.0 -1.0 -1.0 -1.0 ");
 		}
 		fprintf(datafile, "\n");
         copyFromMatrix(cudasaveframe, output, 0, 1.0f);

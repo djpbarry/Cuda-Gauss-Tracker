@@ -8,7 +8,7 @@
 float evaluate(float x0, float y0, int x, int y, float sigma2);
 float getFitPrecision(Matrix candidates, int index, int x0, int y0, int best, int bgIndex, int magIndex, float spatialRes, float sigmaEst);
 
-extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadius, float sigmaEst, float maxThresh, bool *warnings) {
+extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadius, float sigmaEst, float maxThresh, bool *warnings, bool copyRegions) {
     Size radius(2 * fitRadius + 1, 2 * fitRadius + 1);
     Mat temp = image.clone();
     GaussianBlur(temp, image, radius, sigmaEst, sigmaEst);
@@ -19,7 +19,7 @@ extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadiu
     A.size = A.width * A.height;
     A.elements = (float*) malloc(sizeof (float) * A.size);
     copyToMatrix(temp, A, 0);
-    int thisCount = maxFinder(A, B, maxThresh, true, count, 0, frame, fitRadius, warnings);
+    int thisCount = maxFinder(NULL, A, B, maxThresh, true, count, 0, frame, fitRadius, warnings, copyRegions);
     free(A.elements);
     return thisCount;
 }
@@ -29,16 +29,23 @@ extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadiu
 	surrounding the maximum into B. Returns the total number of detected maxima in A.
 */
 
-extern int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z, int fitRadius, bool *warnings) {
-    float min, max, sum;
+extern int maxFinder(int* point, const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z, int fitRadius, bool *warnings, bool copyRegions) {
+    float min, max;
     int i, j;
     int koffset = k * A.width * A.height;
 	int fitSize = 2 * fitRadius + 1;
-    for (int y = fitRadius; y < A.height - fitRadius; y++) {
-        for (int x = fitRadius; x < A.width - fitRadius; x++) {
-            for (min = FLT_MAX, max = -FLT_MAX, j = y - fitRadius; j <= y + fitRadius; j++) {
+	int x1 = fitRadius, x2 = A.width - fitRadius, y1 = fitRadius, y2 = A.height - fitRadius;
+	if(point != NULL){
+		x1 = (point[0] - fitRadius < fitRadius) ? fitRadius : point[0] - fitRadius;
+		x2 = (point[0] + fitRadius + 1 > A.width) ? A.width: point[0] + fitRadius + 1;
+		y1 = (point[1] - fitRadius < fitRadius) ? fitRadius : point[1] - fitRadius;
+		y2 = (point[1] + fitRadius + 1 > A.height) ? A.height: point[1] + fitRadius + 1;
+	}
+    for (int y = y1; y < y2; y++) {
+        for (int x = x1; x < x2; x++) {
+			for (min = FLT_MAX, max = -FLT_MAX, j = y - fitRadius; j <= y + fitRadius; j++) {
                 int offset = koffset + j * A.stride;
-                for (i = x - fitRadius; i <= x + fitRadius; i++) {
+				for (i = x - fitRadius; i <= x + fitRadius; i++) {
                     float pix = A.elements[i + offset];
                     warnings[1] = warnings[1] || (pix > 127.0f);
                     warnings[0] = warnings[0] && (pix < 1.0f);
@@ -60,20 +67,22 @@ extern int maxFinder(const Matrix A, Matrix B, const float maxThresh, bool varyB
                 diff = thispix;
             }
             if ((thispix >= max) && (diff > maxThresh)) {
-                int bxoffset = fitSize * count;
-                sum = 0.0f;
-                for (int m = y - fitRadius; m <= y + fitRadius; m++) {
-                    int aoffset = m * A.stride;
-                    int boffset = (m - y + fitRadius + 3) * B.stride;
-                    for (int n = x - fitRadius; n <= x + fitRadius; n++) {
-                        int bx = n - x + fitRadius;
-                        sum += A.elements[aoffset + n];
-                        B.elements[boffset + bx + bxoffset] = A.elements[aoffset + n];
-                    }
-                }
-                B.elements[count] = (float) x;
-                B.elements[count + B.stride] = (float) y;
-                B.elements[count + 2 * B.stride] = (float) z;
+				if(copyRegions){
+					int bxoffset = fitSize * count;
+					for (int m = y - fitRadius; m <= y + fitRadius; m++) {
+						int aoffset = m * A.stride;
+						int boffset = (m - y + fitRadius + 3) * B.stride;
+						for (int n = x - fitRadius; n <= x + fitRadius; n++) {
+							int bx = n - x + fitRadius;
+							B.elements[boffset + bx + bxoffset] = A.elements[aoffset + n];
+						}
+					}
+				}
+				if(B.elements != NULL){
+					B.elements[count] = (float) x;
+					B.elements[count + B.stride] = (float) y;
+					B.elements[count + 2 * B.stride] = (float) z;
+				}
                 count++;
             }
         }
@@ -103,6 +112,16 @@ extern bool draw2DGaussian(Matrix image, float x0, float y0, float prec) {
                 image.elements[index] = image.elements[index] + evaluate(x0, y0, x, y, prec2s);
             }
         }
+    }
+    return true;
+}
+
+extern bool drawDot(Matrix image, float x0, float y0) {
+    int x = (int) floor(x0);
+	int y = (int) floor(y0);
+    if (x >= 0 && x < image.width && y >= 0 && y < image.height) {
+        int index = x + y * image.stride;
+        image.elements[index] = image.elements[index] + 1.0f;
     }
     return true;
 }

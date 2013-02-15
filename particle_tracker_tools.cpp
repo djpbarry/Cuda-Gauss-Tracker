@@ -17,7 +17,7 @@
 using namespace boost;
 
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-float _mSigmaOfDynamics[] = {100.0f, 100.0f, 1.0f, 1.0f};
+float _mSigmaOfDynamics[] = {50.0f, 50.0f, 1.0f, 1.0f};
 int _mResamplingThreshold = 250;
 int _mRepSteps = 5;
 
@@ -453,7 +453,7 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
 		
 		// Find local maxima and use to initialise state vectors
 		bool warnings[2];
-		int newObjects = maxFinder(frame, candidates, _maxThresh, true, 0, 0, 0, FIT_RADIUS, warnings);
+		int newObjects = maxFinder(NULL, frame, candidates, _maxThresh, true, 0, 0, 0, FIT_RADIUS, warnings, true);
 
 		for (int i = 0; i < newObjects; i++) {
 			float x = candidates.elements[i];

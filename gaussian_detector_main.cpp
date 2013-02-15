@@ -19,17 +19,18 @@ using namespace cv;
 
 void runDetector();
 
-int main(int argc, char* argv[]) {
+/*int main(int argc, char* argv[]) {
     runDetector();
     return 0;
-}
+}*/
 
 void runDetector() {
 	float _2sig2, _sig2, _numAp, _lambda;
 	char* _ext = ".tif";
 	bool verbose;
-	char folder[INPUT_LENGTH];
-	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder, _configFile, &verbose);
+	bool drawDots = true;
+	char folder_c1[INPUT_LENGTH], folder_c2[INPUT_LENGTH];
+	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder_c1, folder_c2, _configFile, &verbose);
 
     // Sigma estimate for Gaussian fitting
     _sigmaEstNM = 0.305f * _lambda / (_numAp * _spatialRes);
@@ -39,9 +40,9 @@ void runDetector() {
 
     printf("\n\nStart Detector...\n");
     //char* folder = "C:/Users/barry05/Desktop/Test Data Sets/CUDA Gauss Localiser Tests/Test6";
-    printf("\nFolder: %s\n", folder);
+    printf("\nFolder: %s\n", folder_c1);
 
-    string outputDir(folder);
+    string outputDir(folder_c1);
     outputDir.append("/CudaOutput_NMAX");
     outputDir.append(boost::lexical_cast<string > (N_MAX));
     outputDir.append("_maxThresh");
@@ -52,7 +53,7 @@ void runDetector() {
         }
     }
 
-    vector<path> v = getFiles(folder);
+    vector<path> v = getFiles(folder_c1);
     int frames = countFiles(v, _ext);
     vector<path>::iterator v_iter;
 
@@ -91,7 +92,7 @@ void runDetector() {
             if ((strcmp(ext_s.c_str(), _ext) == 0)) {
                 printf("\rFinding Maxima ... %d", frames);
                 frame = imread((*v_iter).string(), -1);
-                count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, _maxThresh, warnings);
+                count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, _maxThresh, warnings, true);
                 frames++;
             }
         }
@@ -133,7 +134,11 @@ void runDetector() {
 							float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
 							//float prec = _sigmaEstNM * 100.0f / (mag - bg);
 							float prec = 0.5f;
-							draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, prec);
+							if(drawDots){
+								drawDot(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor);
+							} else {
+								draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, prec);
+							}
 							fprintf(data, "%d %f %f %f\n", outFrames, localisedX * _spatialRes, localisedY * _spatialRes, mag);
 							//testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
 						}

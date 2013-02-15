@@ -16,8 +16,11 @@ extern int countFiles(vector<path> v, char* ext) {
 }
 
 extern vector<path> getFiles(char* folder) {
-    path p(folder); // p reads clearer than argv[1] in the following code            // store paths,
-    vec v; // so we can sort them later
+	vec v;
+	if(folder == NULL){
+		return v;
+	}
+    path p(folder);
 
     try {
         if (exists(p)) // does p actually exist?
@@ -101,7 +104,7 @@ extern void getDims(vector<path> v, const char* ext, int* dims) {
 /*
 	Load default parameter values from a configuration file.
 */
-extern bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder) {
+extern bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder_c1, char *inputFolder_c2) {
     FILE *fp;
     FILE **fpp = &fp;
     fopen_s(fpp, filename, "r");
@@ -110,7 +113,18 @@ extern bool loadParams(float *params, int paramcount, char *filename, int maxlin
 	char dummyChar[1];
 	int lineIndex = 1;
 	if(fgets(line, maxline, fp) != NULL){
-		sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof(char), inputFolder, maxline);
+		if(sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof(char), inputFolder_c1, maxline) != 3){
+			memcpy(&inputFolder_c1[0], EMPTY, INPUT_LENGTH);
+			_ASSERTE( _CrtCheckMemory( ) );
+		}
+	} else {
+		return false;
+	}
+	if(fgets(line, maxline, fp) != NULL){
+		if(sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof(char), inputFolder_c2, maxline) != 3){
+			memcpy(&inputFolder_c2[0], EMPTY, INPUT_LENGTH);
+			_ASSERTE( _CrtCheckMemory( ) );
+		}
 	} else {
 		return false;
 	}
@@ -149,10 +163,11 @@ extern void waitForKey(){
     getchar();
 }
 
-void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, float* _maxThresh, char* _ext, char* folder, char* file, bool* verbose){
+void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaEstNM, float* _sigmaEstPix, int* _scalefactor, float* _maxThresh, char* _ext,
+	char* folder_c1, char* folder_c2, char* file, bool* verbose){
 	float params[NUM_PARAMS];
 	char tempExt[INPUT_LENGTH];
-	if(loadParams(params, NUM_PARAMS, file, INPUT_LENGTH, folder)){
+	if(loadParams(params, NUM_PARAMS, file, INPUT_LENGTH, folder_c1, folder_c2)){
 		*_spatialRes = params[0];
 		*_numAp = params[1];
 		*_lambda = params[2];
