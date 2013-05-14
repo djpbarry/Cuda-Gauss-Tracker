@@ -45,7 +45,7 @@ extern vector<path> getFiles(char* folder) {
 extern float getInput(char* prompt, float default_val) {
     char inputs[INPUT_LENGTH];
     float result = default_val;
-    printf("Enter %s (non-numeric for default): ", prompt);
+    printf("Enter %s (non-numeric for default = %.1f): ", prompt, default_val);
     scanf_s("%s", inputs, INPUT_LENGTH);
     float temp;
     if (sscanf_s(inputs, "%f", &temp) > 0) {

@@ -15,7 +15,7 @@ extern void generateIdealImage(float* particles, int offset, float* vIdealImage,
 extern void addBackgroundToImage(float* aImage, float aBackground, int width, int height);
 extern void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, int width, int height);
 extern float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage, bool* aBitmap);
-extern void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParticlesMemory, float* _mStateVectors, float* _mStateVectorsMemory, int* _counts, int _currentLength, int _mNbParticles, int _mInitRWIterations);
+extern bool runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParticlesMemory, float* _mStateVectors, float* _mStateVectorsMemory, int* _counts, int _currentLength, int _mNbParticles, int _mInitRWIterations);
 extern void drawNewParticles(float* aParticlesToRedraw, float spatialRes, int _currentLength, int _mNbParticles);
 extern void drawFromProposalDistribution(float* particles, float spatialRes, int particleIndex);
 extern int checkStateVectors(float* stateVectors, float* particles, int width, int height, int nVectors, int nParticles);

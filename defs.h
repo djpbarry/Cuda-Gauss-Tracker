@@ -11,8 +11,8 @@
 #define _MAG_ 6
 
 #define NUM_PARAMS 7
-#define N_MAX 3
-#define MAX_DETECTIONS 500
+#define N_MAX 1
+#define MAX_DETECTIONS 100
 #define FIT_RADIUS 3
 #define FIT_SIZE 7
 #define SEARCH_RADIUS 1
@@ -40,6 +40,6 @@
 #define BACKGROUND 1.0f
 #define TIF ".tif"
 #define EMPTY "empty"
-#define MAX_MEMORY 500000000
+#define MAX_MEMORY 2000000000
 
 #endif

@@ -1,6 +1,7 @@
 
 #include <gauss_tools.h>
 #include <matrix_mat.h>
+#include <defs.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/special_functions/round.hpp>
@@ -84,6 +85,7 @@ extern int maxFinder(int* point, const Matrix A, Matrix B, const float maxThresh
 					B.elements[count + 2 * B.stride] = (float) z;
 				}
                 count++;
+				if(count >= MAX_DETECTIONS) return count;
             }
         }
     }

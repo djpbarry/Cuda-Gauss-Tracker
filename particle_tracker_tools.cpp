@@ -17,7 +17,7 @@
 using namespace boost;
 
 float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-float _mSigmaOfDynamics[] = {50.0f, 50.0f, 1.0f, 1.0f};
+float _mSigmaOfDynamics[] = {2.0f, 2.0f, 1.0f, 1.0f};
 int _mResamplingThreshold = 250;
 int _mRepSteps = 5;
 
@@ -382,7 +382,7 @@ float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage,
     return vLogLikelihood;
 }
 
-void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParticlesMemory, float* _mStateVectors, float* _mStateVectorsMemory,
+bool runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParticlesMemory, float* _mStateVectors, float* _mStateVectorsMemory,
 	int* _counts, int _currentLength, int _mNbParticles, int _mInitRWIterations) {
     printf("\n\nRunning Particle Filter ... %d%%", 0);
     Matrix frame;
@@ -392,6 +392,7 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
     frame.depth = 1;
     frame.size = frame.width * frame.height;
     frame.elements = (float*) malloc(sizeof (float) * frame.size);
+	bool tooManyDetections = false;
 
     for (int vFrameIndex = 0; vFrameIndex < aOriginalImage.depth; vFrameIndex++) {
         printf("\rRunning Particle Filter ... %d%%", (vFrameIndex + 1) * 100 / aOriginalImage.depth);
@@ -435,13 +436,13 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
 		}
 
 		//[DEBUG]
-		Mat cudasaveframe(frame.height*_scalefactor, frame.width*_scalefactor, CV_32F);
-		copyFromMatrix(cudasaveframe, frame, 0, 1.0f);
-		cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
-		string savefilename("C:/users/barry05/Desktop/Tracker_Debug_Output/");
-		savefilename.append(boost::lexical_cast<string > (vFrameIndex));
-		savefilename.append(PNG);
-		imwrite(savefilename, cudasaveframe);
+		//Mat cudasaveframe(frame.height*_scalefactor, frame.width*_scalefactor, CV_32F);
+		//copyFromMatrix(cudasaveframe, frame, 0, 1.0f);
+		//cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
+		//string savefilename("C:/users/barry05/Desktop/Tracker_Debug_Output/");
+		//savefilename.append(boost::lexical_cast<string > (vFrameIndex));
+		//savefilename.append(PNG);
+		//imwrite(savefilename, cudasaveframe);
 		//[/DEBUG]
 
 		Matrix candidates;
@@ -454,6 +455,10 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
 		// Find local maxima and use to initialise state vectors
 		bool warnings[2];
 		int newObjects = maxFinder(NULL, frame, candidates, _maxThresh, true, 0, 0, 0, FIT_RADIUS, warnings, true);
+		while(_currentLength + newObjects > MAX_DETECTIONS){
+			newObjects--;
+			tooManyDetections = true;
+		}
 
 		for (int i = 0; i < newObjects; i++) {
 			float x = candidates.elements[i];
@@ -474,6 +479,7 @@ void runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
         _counts[vFrameIndex] = _currentLength;
     }
     free(frame.elements);
+	return tooManyDetections;
 }
 
 /**

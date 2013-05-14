@@ -8,6 +8,8 @@
 #include <global_params.h>
 #include <gauss_tools.h>
 
+void memErr();
+
 int main(int argc, char* argv[]){
 	int _mNbParticles = 100;
 	int _mInitRWIterations = 1;
@@ -15,7 +17,7 @@ int main(int argc, char* argv[]){
 	char folder_c1[INPUT_LENGTH];
 	char folder_c2[INPUT_LENGTH];
 	float _numAp, _lambda;
-	bool verbose = true;
+	bool verbose = true, maxDetectionsReached = false;
 	printf("Probabilistic Particle Tracker v1.%000d\n\n", getCurrentRevisionNumber(_tagFile, INPUT_LENGTH));
 	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder_c1, folder_c2, _configFile, &verbose);
 	checkFileSep(folder_c1);
@@ -24,7 +26,7 @@ int main(int argc, char* argv[]){
 		checkFileSep(folder_c2);
 	}
     string outputDir(folder_c1);
-    outputDir.append("/CudaOutput");
+    outputDir.append("/Cuda_Tracker_Output");
     if(!(exists(outputDir))){
         if(!(create_directory(outputDir))){
             return -1;
@@ -84,21 +86,29 @@ int main(int argc, char* argv[]){
 		_mOriginalImage_c2.elements = NULL;
 	}
 
-    int frames = loadImages(_mOriginalImage_c1, TIF, v1, folder_c1, numFiles, true);
-	if(!mono){
-		loadImages(_mOriginalImage_c2, TIF, v2, folder_c2, numFiles, true);
+	int frames = 0;
+	if(!(_mOriginalImage_c1.elements == NULL)){
+		frames = loadImages(_mOriginalImage_c1, TIF, v1, folder_c1, numFiles, true);
+		if(!mono){
+			loadImages(_mOriginalImage_c2, TIF, v2, folder_c2, numFiles, true);
+		}
+	} else {
+		memErr();
+		return 0;
 	}
 
     //Initialise memory spaces
     float* _mParticles = (float*)malloc(sizeof(float) * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1));
     float* _mStateVectorsMemory = (float*)malloc(sizeof(float) * _mOriginalImage_c1.depth * MAX_DETECTIONS * DIM_OF_STATE);
-    float* _mParticlesMemory = (float*)malloc(sizeof(float) * _mOriginalImage_c1.depth * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1));
+    //float* _mParticlesMemory = (float*)malloc(sizeof(float) * _mOriginalImage_c1.depth * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1));
+	float* _mParticlesMemory = NULL;
     float* _mStateVectors = (float*)malloc(sizeof(float) * MAX_DETECTIONS * DIM_OF_STATE);
 	//float* _mMaxLogLikelihood = (float*)malloc(sizeof(float) * _mOriginalImage.depth);
     int* _counts = (int*)malloc(sizeof(int) * _mOriginalImage_c1.depth);
 
-	if(!(_mParticlesMemory == NULL) && !(_mParticles == NULL) && !(_mStateVectorsMemory == NULL)
-		&& !(_mStateVectors == NULL) && !(_counts == NULL)){
+	/*if(!(_mParticlesMemory == NULL) && !(_mParticles == NULL) && !(_mStateVectorsMemory == NULL)
+		&& !(_mStateVectors == NULL) && !(_counts == NULL)){*/
+	if(!(_mParticles == NULL) && !(_mStateVectorsMemory == NULL) && !(_mStateVectors == NULL) && !(_counts == NULL)){
 		Matrix candidates_c1;
 
 		// Find local maxima and use to initialise state vectors
@@ -109,6 +119,10 @@ int main(int argc, char* argv[]){
 		candidates_c1.elements = (float*) malloc(sizeof (float) * candidates_c1.size);
 		bool warnings[] = {true, false};
 		int _currentLength = maxFinder(NULL, _mOriginalImage_c1, candidates_c1, _maxThresh, false, 0, 0, 0, FIT_RADIUS, warnings, true);
+		if(_currentLength >= MAX_DETECTIONS){
+			_currentLength = MAX_DETECTIONS;
+			maxDetectionsReached = true;
+		}
 		for (int i = 0; i < _currentLength; i++) {
 			float x = candidates_c1.elements[i];
 			float y = candidates_c1.elements[i + candidates_c1.stride];
@@ -121,14 +135,22 @@ int main(int argc, char* argv[]){
 		copyStateParticlesToMemory(_mParticlesMemory, _mParticles, 0, _mNbParticles, _currentLength, 0);
 		filterTheInitialization(_mOriginalImage_c1, _mInitRWIterations, _mParticles, _currentLength, _mNbParticles, _mStateVectors, 0);
 		copyStateVector(_mStateVectorsMemory, _mStateVectors, 0, _currentLength);
-		runParticleFilter(_mOriginalImage_c1, _mParticles, _mParticlesMemory, _mStateVectors, _mStateVectorsMemory, _counts, _currentLength, _mNbParticles, _mInitRWIterations);
+		maxDetectionsReached = maxDetectionsReached && runParticleFilter(_mOriginalImage_c1, _mParticles, _mParticlesMemory, _mStateVectors, _mStateVectorsMemory, _counts, _currentLength, _mNbParticles, _mInitRWIterations);
 
 		printf("\n\n");
 		output(dims_c1, frames, outputDir, _mNbParticles, _counts, _mParticlesMemory, _mStateVectorsMemory, _scalefactor, _mOriginalImage_c2, verbose, _maxThresh);
+		if(maxDetectionsReached){
+			printf("\n\nInsufficient memory allocated to track all particles.");
+		}
 		printf("\n\nElapsed Time: %.3f s\n", ((float)(clock() - start))/1000.0f);
+		waitForKey();
 	} else {
-		printf("\n\nFailed to allocate sufficient memory - aborting.");
+		memErr();
 	}
-	waitForKey();
     return 0;
+}
+
+void memErr(){
+	printf("\n\nFailed to allocate sufficient memory - aborting.");
+	waitForKey();
 }

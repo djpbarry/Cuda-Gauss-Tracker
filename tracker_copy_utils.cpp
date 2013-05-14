@@ -1,3 +1,5 @@
+
+#include "stdafx.h"
 #include <tracker_copy_utils.h>
 #include <defs.h>
 
@@ -25,6 +27,7 @@ void copyStateParticles(float* dest, float* source, int stateVectorParticleIndex
 }
 
 void copyStateParticlesToMemory(float* dest, float* source, int frameIndex, int _mNbParticles, int totalLength, int offset) {
+	if(dest == NULL) return;
     int frameVectorIndex = frameIndex * MAX_DETECTIONS * _mNbParticles * (DIM_OF_STATE + 1);
     for (int k = offset; k < totalLength; k++) {
         int stateVectorIndex = frameVectorIndex + _mNbParticles * (DIM_OF_STATE + 1) * k;
