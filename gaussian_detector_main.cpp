@@ -14,10 +14,20 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/special_functions/round.hpp>
+#include <jni.h>
+#include <ParticleTracking_Timelapse_Analysis.h>
 
 using namespace cv;
 
 void runDetector();
+
+JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFitter
+  (JNIEnv *, jobject, jstring, jfloat, jfloat, jfloat) {
+   //runDetector();
+	  printf("Hello World!");
+	  jboolean result = false;
+   return result;
+}
 
 //int main(int argc, char* argv[]) {
 //    runDetector();
@@ -28,7 +38,7 @@ void runDetector() {
 	float _2sig2, _sig2, _numAp, _lambda;
 	char* _ext = ".tif";
 	bool verbose;
-	bool drawDots = true;
+	bool drawDots = false;
 	char folder_c1[INPUT_LENGTH], folder_c2[INPUT_LENGTH];
 	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder_c1, folder_c2, _configFile, &verbose);
 
@@ -129,19 +139,20 @@ void runDetector() {
                     for (int i = 0; i <= bestN; i++) {
                         float mag = candidates.elements[outcount + candidates.stride * (MAG_ROW + i)];
 						float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
-						if(mag > bg){
+						//if(mag > bg){
 							float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
 							float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
 							//float prec = _sigmaEstNM * 100.0f / (mag - bg);
-							float prec = 0.5f;
+							//float prec = 1.0f;
+							//float prec = _sigmaEstNM / _spatialRes;
 							if(drawDots){
 								drawDot(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor);
 							} else {
-								draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, prec);
+								draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, _sigmaEstNM);
 							}
 							fprintf(data, "%d %f %f %f\n", outFrames, localisedX * _spatialRes, localisedY * _spatialRes, mag);
 							//testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
-						}
+						//}
                     }
                 }
                 outcount++;

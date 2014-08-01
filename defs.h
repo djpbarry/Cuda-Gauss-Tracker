@@ -12,9 +12,9 @@
 
 #define NUM_PARAMS 7
 #define N_MAX 1
-#define MAX_DETECTIONS 100
-#define FIT_RADIUS 3
-#define FIT_SIZE 7
+#define MAX_DETECTIONS 1000
+#define FIT_RADIUS 7
+#define FIT_SIZE 15
 #define SEARCH_RADIUS 1
 #define STEP_TOL 2000
 #define ITERATIONS 100
