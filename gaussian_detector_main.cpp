@@ -22,11 +22,11 @@ using namespace cv;
 void runDetector();
 
 JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFitter
-  (JNIEnv *, jobject, jstring, jfloat, jfloat, jfloat) {
-   //runDetector();
-	  printf("Hello World!");
-	  jboolean result = false;
-   return result;
+(JNIEnv *, jobject, jstring, jfloat, jfloat, jfloat) {
+    //runDetector();
+    printf("Hello World!");
+    jboolean result = false;
+    return result;
 }
 
 //int main(int argc, char* argv[]) {
@@ -35,18 +35,18 @@ JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFi
 //}
 
 void runDetector() {
-	float _2sig2, _sig2, _numAp, _lambda;
-	char* _ext = ".tif";
-	bool verbose;
-	bool drawDots = false;
-	char folder_c1[INPUT_LENGTH], folder_c2[INPUT_LENGTH];
-	getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder_c1, folder_c2, _configFile, &verbose);
+    float _2sig2, _sig2, _numAp, _lambda;
+    char* _ext = ".tif";
+    bool verbose;
+    bool drawDots = false;
+    char folder_c1[INPUT_LENGTH], folder_c2[INPUT_LENGTH];
+    getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder_c1, folder_c2, _configFile, &verbose);
 
     // Sigma estimate for Gaussian fitting
     _sigmaEstNM = 0.305f * _lambda / (_numAp * _spatialRes);
     _sig2 = _sigmaEstNM * _sigmaEstNM;
     _2sig2 = 2.0f * _sig2;
-	bool warnings[] = {true, false};
+    bool warnings[] = {true, false};
 
     printf("\n\nStart Detector...\n");
     //char* folder = "C:/Users/barry05/Desktop/Test Data Sets/CUDA Gauss Localiser Tests/Test6";
@@ -86,11 +86,11 @@ void runDetector() {
 
     Mat frame;
 
-	string dataDir(outputDir);
-	dataDir.append("/data.txt");
-	FILE *data;
+    string dataDir(outputDir);
+    dataDir.append("/data.txt");
+    FILE *data;
     FILE **pdata = &data;
-	fopen_s(pdata, dataDir.data(), "w");
+    fopen_s(pdata, dataDir.data(), "w");
     for (int loopIndex = 0; loopIndex < numLoops; loopIndex++) {
         printf("\n\n-------------------------\n\nLOOP %d OF %d\n\n-------------------------\n\n", loopIndex + 1, numLoops);
 
@@ -138,21 +138,21 @@ void runDetector() {
                 if (bestN >= 0) {
                     for (int i = 0; i <= bestN; i++) {
                         float mag = candidates.elements[outcount + candidates.stride * (MAG_ROW + i)];
-						float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
-						//if(mag > bg){
-							float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
-							float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
-							//float prec = _sigmaEstNM * 100.0f / (mag - bg);
-							//float prec = 1.0f;
-							//float prec = _sigmaEstNM / _spatialRes;
-							if(drawDots){
-								drawDot(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor);
-							} else {
-								draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, _sigmaEstNM);
-							}
-							fprintf(data, "%d %f %f %f\n", outFrames, localisedX * _spatialRes, localisedY * _spatialRes, mag);
-							//testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
-						//}
+                        float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
+                        //if(mag > bg){
+                        float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
+                        float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
+                        //float prec = _sigmaEstNM * 100.0f / (mag - bg);
+                        //float prec = 1.0f;
+                        //float prec = _sigmaEstNM / _spatialRes;
+                        if (drawDots) {
+                            drawDot(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor);
+                        } else {
+                            draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, _sigmaEstNM);
+                        }
+                        fprintf(data, "%d %f %f %f\n", outFrames, localisedX * _spatialRes, localisedY * _spatialRes, mag);
+                        //testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
+                        //}
                     }
                 }
                 outcount++;
@@ -171,7 +171,7 @@ void runDetector() {
         }
         frame.release();
     }
-	fclose(data);
+    fclose(data);
     //printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
     printf("\n\nPress Any Key...");
     waitForKey();

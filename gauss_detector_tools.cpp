@@ -26,27 +26,27 @@ extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadiu
 }
 
 /*
-	Searches for local maxima in A, greater in magnitude than maxThresh, and copies the local neighbourhood
-	surrounding the maximum into B. Returns the total number of detected maxima in A.
-*/
+        Searches for local maxima in A, greater in magnitude than maxThresh, and copies the local neighbourhood
+        surrounding the maximum into B. Returns the total number of detected maxima in A.
+ */
 
 extern int maxFinder(int* point, const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z, int fitRadius, bool *warnings, bool copyRegions) {
     float min, max;
     int i, j;
     int koffset = k * A.width * A.height;
-	int fitSize = 2 * fitRadius + 1;
-	int x1 = fitRadius, x2 = A.width - fitRadius, y1 = fitRadius, y2 = A.height - fitRadius;
-	if(point != NULL){
-		x1 = (point[0] - fitRadius < fitRadius) ? fitRadius : point[0] - fitRadius;
-		x2 = (point[0] + fitRadius + 1 > A.width) ? A.width: point[0] + fitRadius + 1;
-		y1 = (point[1] - fitRadius < fitRadius) ? fitRadius : point[1] - fitRadius;
-		y2 = (point[1] + fitRadius + 1 > A.height) ? A.height: point[1] + fitRadius + 1;
-	}
+    int fitSize = 2 * fitRadius + 1;
+    int x1 = fitRadius, x2 = A.width - fitRadius, y1 = fitRadius, y2 = A.height - fitRadius;
+    if (point != NULL) {
+        x1 = (point[0] - fitRadius < fitRadius) ? fitRadius : point[0] - fitRadius;
+        x2 = (point[0] + fitRadius + 1 > A.width) ? A.width : point[0] + fitRadius + 1;
+        y1 = (point[1] - fitRadius < fitRadius) ? fitRadius : point[1] - fitRadius;
+        y2 = (point[1] + fitRadius + 1 > A.height) ? A.height : point[1] + fitRadius + 1;
+    }
     for (int y = y1; y < y2; y++) {
         for (int x = x1; x < x2; x++) {
-			for (min = FLT_MAX, max = -FLT_MAX, j = y - fitRadius; j <= y + fitRadius; j++) {
+            for (min = FLT_MAX, max = -FLT_MAX, j = y - fitRadius; j <= y + fitRadius; j++) {
                 int offset = koffset + j * A.stride;
-				for (i = x - fitRadius; i <= x + fitRadius; i++) {
+                for (i = x - fitRadius; i <= x + fitRadius; i++) {
                     float pix = A.elements[i + offset];
                     warnings[1] = warnings[1] || (pix > 127.0f);
                     warnings[0] = warnings[0] && (pix < 1.0f);
@@ -68,24 +68,24 @@ extern int maxFinder(int* point, const Matrix A, Matrix B, const float maxThresh
                 diff = thispix;
             }
             if ((thispix >= max) && (diff > maxThresh)) {
-				if(copyRegions){
-					int bxoffset = fitSize * count;
-					for (int m = y - fitRadius; m <= y + fitRadius; m++) {
-						int aoffset = m * A.stride;
-						int boffset = (m - y + fitRadius + 3) * B.stride;
-						for (int n = x - fitRadius; n <= x + fitRadius; n++) {
-							int bx = n - x + fitRadius;
-							B.elements[boffset + bx + bxoffset] = A.elements[aoffset + n];
-						}
-					}
-				}
-				if(B.elements != NULL){
-					B.elements[count] = (float) x;
-					B.elements[count + B.stride] = (float) y;
-					B.elements[count + 2 * B.stride] = (float) z;
-				}
+                if (copyRegions) {
+                    int bxoffset = fitSize * count;
+                    for (int m = y - fitRadius; m <= y + fitRadius; m++) {
+                        int aoffset = m * A.stride;
+                        int boffset = (m - y + fitRadius + 3) * B.stride;
+                        for (int n = x - fitRadius; n <= x + fitRadius; n++) {
+                            int bx = n - x + fitRadius;
+                            B.elements[boffset + bx + bxoffset] = A.elements[aoffset + n];
+                        }
+                    }
+                }
+                if (B.elements != NULL) {
+                    B.elements[count] = (float) x;
+                    B.elements[count + B.stride] = (float) y;
+                    B.elements[count + 2 * B.stride] = (float) z;
+                }
                 count++;
-				if(count >= MAX_DETECTIONS) return count;
+                if (count >= MAX_DETECTIONS) return count;
             }
         }
     }
@@ -97,9 +97,9 @@ float evaluate(float x0, float y0, int x, int y, float sigma2) {
 }
 
 /*
-	Draw a normalised 2D Gaussian distribution in image, centred at (x0, y0), with the width determined by the localisation precision, prec
-	(0 < prec < 1).
-*/
+        Draw a normalised 2D Gaussian distribution in image, centred at (x0, y0), with the width determined by the localisation precision, prec
+        (0 < prec < 1).
+ */
 extern bool draw2DGaussian(Matrix image, float x0, float y0, float prec) {
     int x, y;
     float prec2s = (prec * prec);
@@ -120,7 +120,7 @@ extern bool draw2DGaussian(Matrix image, float x0, float y0, float prec) {
 
 extern bool drawDot(Matrix image, float x0, float y0) {
     int x = (int) floor(x0);
-	int y = (int) floor(y0);
+    int y = (int) floor(y0);
     if (x >= 0 && x < image.width && y >= 0 && y < image.height) {
         int index = x + y * image.stride;
         image.elements[index] = image.elements[index] + 1.0f;
@@ -129,17 +129,17 @@ extern bool drawDot(Matrix image, float x0, float y0) {
 }
 
 /*
-	Estimates the precision of the Gaussian fits in candidates, based on the number of photons collected (the height of the peak)
-	and the level of background.
-*/
+        Estimates the precision of the Gaussian fits in candidates, based on the number of photons collected (the height of the peak)
+        and the level of background.
+ */
 float getFitPrecision(Matrix candidates, int index, int x0, int y0, int best, int bgIndex, int magIndex, float spatialRes, float sigmaEst) {
     //int y0 = HEADER;
     //int x0 = index * FIT_SIZE;
     //int best = round(candidates.elements[index + candidates.stride * BEST_ROW]);
     float bg = 0.0f;
     float N = 0.0f;
-	float sig2 = sigmaEst * sigmaEst;
-	float res2 = spatialRes * spatialRes;
+    float sig2 = sigmaEst * sigmaEst;
+    float res2 = spatialRes * spatialRes;
     for (int k = 0; k <= best; k++) {
         bg += candidates.elements[index + candidates.stride * (bgIndex + k)];
         float mag = candidates.elements[index + candidates.stride * (magIndex + k)];

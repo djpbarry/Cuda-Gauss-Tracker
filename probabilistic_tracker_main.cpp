@@ -150,7 +150,7 @@ void memErr();
 //    return 0;
 //}
 
-void memErr(){
-	printf("\n\nFailed to allocate sufficient memory - aborting.");
-	waitForKey();
+void memErr() {
+    printf("\n\nFailed to allocate sufficient memory - aborting.");
+    waitForKey();
 }

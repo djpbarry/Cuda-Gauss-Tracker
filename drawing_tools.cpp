@@ -2,17 +2,17 @@
 #include <math.h>
 
 /*
-	Draw a dot in image at the specified (x0, y0) coordinate.
-*/
+        Draw a dot in image at the specified (x0, y0) coordinate.
+ */
 void drawDot(Matrix image, int x0, int y0) {
-	int index = x0 + y0 * image.stride;
+    int index = x0 + y0 * image.stride;
     image.elements[index] = image.elements[index] + 1.0f;
     return;
 }
 
 /*
-	Draw a square of side length (2 * radius + 1) in image at the specified (x0, y0) coordinate.
-*/
+        Draw a square of side length (2 * radius + 1) in image at the specified (x0, y0) coordinate.
+ */
 bool drawSquare(Matrix image, float x0, float y0, int drawRadius) {
     int x, y;
     for (x = (int) floor(x0 - drawRadius); x <= x0 + drawRadius; x++) {

@@ -263,9 +263,9 @@ __device__ void doMultiFit(charMatrix M, int x0, int N, float *xe, float *ye, fl
             bg[nnmax + j] -= (r8 - r7) * bgStepSize;
             if (mag[nnmax + j] < 0.0f) mag[nnmax + j] = 0.0f;
             if (bg[nnmax + j] < 0.0f) bg[nnmax + j] = 0.0f;
-            if (bg[nnmax + j] > mag[nnmax + j]){
-				bg[nnmax + j] = mag[nnmax + j];
-			}
+            if (bg[nnmax + j] > mag[nnmax + j]) {
+                bg[nnmax + j] = mag[nnmax + j];
+            }
         }
     }
     r[N] = getRSquared(x0, sumMultiResiduals(x0, xe, ye, mag, bg, M, 0.0f, 0.0f, 0.0f, 0.0f, 0, N), M);

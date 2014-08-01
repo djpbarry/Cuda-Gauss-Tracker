@@ -46,7 +46,7 @@ void createParticles(float* aStateVectors, float* aParticles, int totalLength, i
     return;
 }
 
-extern void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, float* _mParticles,	int totalLength, int _mNbParticles, float* _mStateVectors, int offset) {
+extern void filterTheInitialization(Matrix aImageStack, int aInitPFIterations, float* _mParticles, int totalLength, int _mNbParticles, float* _mStateVectors, int offset) {
     //printf("\nInitialising...");
     float vSigmaOfRWSave[DIM_OF_STATE];
     for (int vI = 0; vI < DIM_OF_STATE; vI++) {
@@ -154,7 +154,7 @@ void randomWalkProposal(float* aParticles, int offset) {
     }
     return;
 }
-*/
+ */
 //Estimates all state vectors from the particles and their weights
 
 void estimateStateVectors(float* aStateVectors, float* aParticles, int totalLength, int _mNbParticles, int offset) {
@@ -296,7 +296,7 @@ void generateParticlesIntensityBitmap(float* setOfParticles, int stateVectorInde
     }
     return;
 }
-*/
+ */
 void generateIdealImage(float* particles, int offset, float* vIdealImage, int width, int height) {
     addBackgroundToImage(vIdealImage, BACKGROUND, width, height);
     addFeaturePointToImage(vIdealImage, particles[offset + _X_], particles[offset + _Y_], particles[offset + _MAG_], width, height);
@@ -332,7 +332,7 @@ void addFeaturePointToImage(float* aImage, float x, float y, float aIntensity, i
         int woffset = vY * width;
         for (int vX = vXStart; vX <= vXEnd && vX < width; vX++) {
             aImage[woffset + vX] += (aIntensity * expf(-(powf(vX - x + .5f, 2.0f) + powf(vY - y + .5f, 2.0f)) / (2.0f * vVarianceXYinPx)));
-			if(aImage[woffset + vX] < 0.0f) aImage[woffset + vX] = 0.0f;
+            if (aImage[woffset + vX] < 0.0f) aImage[woffset + vX] = 0.0f;
         }
     }
 }
@@ -383,7 +383,7 @@ float calculateLogLikelihood(Matrix aStackProcs, int aFrame, float* aGivenImage,
 }
 
 bool runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParticlesMemory, float* _mStateVectors, float* _mStateVectorsMemory,
-	int* _counts, int _currentLength, int _mNbParticles, int _mInitRWIterations) {
+        int* _counts, int _currentLength, int _mNbParticles, int _mInitRWIterations) {
     printf("\n\nRunning Particle Filter ... %d%%", 0);
     Matrix frame;
     frame.width = aOriginalImage.width;
@@ -392,7 +392,7 @@ bool runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
     frame.depth = 1;
     frame.size = frame.width * frame.height;
     frame.elements = (float*) malloc(sizeof (float) * frame.size);
-	bool tooManyDetections = false;
+    bool tooManyDetections = false;
 
     for (int vFrameIndex = 0; vFrameIndex < aOriginalImage.depth; vFrameIndex++) {
         printf("\rRunning Particle Filter ... %d%%", (vFrameIndex + 1) * 100 / aOriginalImage.depth);
@@ -426,60 +426,60 @@ bool runParticleFilter(Matrix aOriginalImage, float* _mParticles, float* _mParti
             _mSigmaOfRandomWalk[dI] = vSigmaOfRWSave[dI];
         }
 
-		//Generate residual image to detect potential new targets to track
-		for (int vI = 0; vI < _currentLength; vI++){
-			int vectorIndex = vI * DIM_OF_STATE;
-			float x = _mStateVectors[vectorIndex + _X_];
-			float y = _mStateVectors[vectorIndex + _Y_];
-			float mag = _mStateVectors[vectorIndex + _MAG_];
-			addFeaturePointToImage(frame.elements, x, y, -mag, frame.width, frame.height);
-		}
+        //Generate residual image to detect potential new targets to track
+        for (int vI = 0; vI < _currentLength; vI++) {
+            int vectorIndex = vI * DIM_OF_STATE;
+            float x = _mStateVectors[vectorIndex + _X_];
+            float y = _mStateVectors[vectorIndex + _Y_];
+            float mag = _mStateVectors[vectorIndex + _MAG_];
+            addFeaturePointToImage(frame.elements, x, y, -mag, frame.width, frame.height);
+        }
 
-		//[DEBUG]
-		//Mat cudasaveframe(frame.height*_scalefactor, frame.width*_scalefactor, CV_32F);
-		//copyFromMatrix(cudasaveframe, frame, 0, 1.0f);
-		//cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
-		//string savefilename("C:/users/barry05/Desktop/Tracker_Debug_Output/");
-		//savefilename.append(boost::lexical_cast<string > (vFrameIndex));
-		//savefilename.append(PNG);
-		//imwrite(savefilename, cudasaveframe);
-		//[/DEBUG]
+        //[DEBUG]
+        //Mat cudasaveframe(frame.height*_scalefactor, frame.width*_scalefactor, CV_32F);
+        //copyFromMatrix(cudasaveframe, frame, 0, 1.0f);
+        //cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
+        //string savefilename("C:/users/barry05/Desktop/Tracker_Debug_Output/");
+        //savefilename.append(boost::lexical_cast<string > (vFrameIndex));
+        //savefilename.append(PNG);
+        //imwrite(savefilename, cudasaveframe);
+        //[/DEBUG]
 
-		Matrix candidates;
-		candidates.width = FIT_SIZE * MAX_DETECTIONS;
-		candidates.stride = candidates.width;
-		candidates.height = FIT_SIZE + DATA_ROWS;
-		candidates.size = candidates.width * candidates.height;
-		candidates.elements = (float*) malloc(sizeof (float) * candidates.size);
-		
-		// Find local maxima and use to initialise state vectors
-		bool warnings[2];
-		int newObjects = maxFinder(NULL, frame, candidates, _maxThresh, true, 0, 0, 0, FIT_RADIUS, warnings, true);
-		while(_currentLength + newObjects > MAX_DETECTIONS){
-			newObjects--;
-			tooManyDetections = true;
-		}
+        Matrix candidates;
+        candidates.width = FIT_SIZE * MAX_DETECTIONS;
+        candidates.stride = candidates.width;
+        candidates.height = FIT_SIZE + DATA_ROWS;
+        candidates.size = candidates.width * candidates.height;
+        candidates.elements = (float*) malloc(sizeof (float) * candidates.size);
 
-		for (int i = 0; i < newObjects; i++) {
-			float x = candidates.elements[i];
-			float y = candidates.elements[i + candidates.stride];
-			float mag = candidates.elements[i * FIT_SIZE + FIT_RADIUS + candidates.stride * (HEADER + FIT_RADIUS)];
-			float firstState[] = {x, y, 0.0f, 0.0f, 0.0f, 0.0f, mag};
-			updateStateVector(firstState, i + _currentLength, _mStateVectors);
-		}
-		free(candidates.elements);
-		createParticles(_mStateVectors, _mParticles, _currentLength + newObjects, _mNbParticles, _currentLength);
-		copyStateParticlesToMemory(_mParticlesMemory, _mParticles, 0, _mNbParticles, _currentLength + newObjects, _currentLength);
-		filterTheInitialization(aOriginalImage, _mInitRWIterations, _mParticles, _currentLength + newObjects, _mNbParticles, _mStateVectors, _currentLength);
+        // Find local maxima and use to initialise state vectors
+        bool warnings[2];
+        int newObjects = maxFinder(NULL, frame, candidates, _maxThresh, true, 0, 0, 0, FIT_RADIUS, warnings, true);
+        while (_currentLength + newObjects > MAX_DETECTIONS) {
+            newObjects--;
+            tooManyDetections = true;
+        }
 
-		_currentLength += newObjects;
+        for (int i = 0; i < newObjects; i++) {
+            float x = candidates.elements[i];
+            float y = candidates.elements[i + candidates.stride];
+            float mag = candidates.elements[i * FIT_SIZE + FIT_RADIUS + candidates.stride * (HEADER + FIT_RADIUS)];
+            float firstState[] = {x, y, 0.0f, 0.0f, 0.0f, 0.0f, mag};
+            updateStateVector(firstState, i + _currentLength, _mStateVectors);
+        }
+        free(candidates.elements);
+        createParticles(_mStateVectors, _mParticles, _currentLength + newObjects, _mNbParticles, _currentLength);
+        copyStateParticlesToMemory(_mParticlesMemory, _mParticles, 0, _mNbParticles, _currentLength + newObjects, _currentLength);
+        filterTheInitialization(aOriginalImage, _mInitRWIterations, _mParticles, _currentLength + newObjects, _mNbParticles, _mStateVectors, _currentLength);
 
-		//save the new states
+        _currentLength += newObjects;
+
+        //save the new states
         copyStateVector(_mStateVectorsMemory, _mStateVectors, vFrameIndex, _currentLength);
         _counts[vFrameIndex] = _currentLength;
     }
     free(frame.elements);
-	return tooManyDetections;
+    return tooManyDetections;
 }
 
 /**
