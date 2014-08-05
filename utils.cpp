@@ -103,7 +103,7 @@ extern void getDims(vector<path> v, const char* ext, int* dims) {
 /*
         Load default parameter values from a configuration file.
  */
-extern bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder_c1, char *inputFolder_c2) {
+extern bool loadParams(float *params, int paramcount, char *filename, int maxline, char *inputFolder_c1, char *inputFolder_c2, char *ext) {
     FILE *fp;
     FILE **fpp = &fp;
     fopen_s(fpp, filename, "r");
@@ -122,6 +122,14 @@ extern bool loadParams(float *params, int paramcount, char *filename, int maxlin
     if (fgets(line, maxline, fp) != NULL) {
         if (sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof (char), inputFolder_c2, maxline) != 3) {
             memcpy(&inputFolder_c2[0], EMPTY, INPUT_LENGTH);
+            _ASSERTE(_CrtCheckMemory());
+        }
+    } else {
+        return false;
+    }
+	if (fgets(line, maxline, fp) != NULL) {
+        if (sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof (char), ext, maxline) != 3) {
+            memcpy(&ext[0], EMPTY, INPUT_LENGTH);
             _ASSERTE(_CrtCheckMemory());
         }
     } else {
@@ -166,7 +174,7 @@ void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaE
         char* folder_c1, char* folder_c2, char* file, bool* verbose) {
     float params[NUM_PARAMS];
     char tempExt[INPUT_LENGTH];
-    if (loadParams(params, NUM_PARAMS, file, INPUT_LENGTH, folder_c1, folder_c2)) {
+    if (loadParams(params, NUM_PARAMS, file, INPUT_LENGTH, folder_c1, folder_c2, tempExt)) {
         *_spatialRes = params[0];
         *_numAp = params[1];
         *_lambda = params[2];
@@ -177,16 +185,16 @@ void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaE
     } else {
         printf("Failed to load configuration file: %s\n\n", file);
     }
-    *_spatialRes = getInput("spatial resolution in nm", *_spatialRes);
-    *_lambda = getInput("wavelength of emitted light in nm", *_lambda);
-    *_maxThresh = getInput("maximum intensity threshold", *_maxThresh);
-    *_scalefactor = round(getInput("scaling factor for output", (float) *_scalefactor));
-    getTextInput("Enter file extension: ", tempExt);
-    *verbose = getBoolInput("Verbose mode (Y/N)?");
+    //*_spatialRes = getInput("spatial resolution in nm", *_spatialRes);
+    //*_lambda = getInput("wavelength of emitted light in nm", *_lambda);
+    //*_maxThresh = getInput("maximum intensity threshold", *_maxThresh);
+    //*_scalefactor = round(getInput("scaling factor for output", (float) *_scalefactor));
+    //getTextInput("Enter file extension: ", tempExt);
+    //*verbose = getBoolInput("Verbose mode (Y/N)?");
     if (tempExt[0] != '.') {
         printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", tempExt, _ext);
-    } else {
-        strcpy_s(_ext, INPUT_LENGTH * sizeof (char), tempExt);
+    } else if(strcmp(_ext, tempExt) != 0){
+		strcpy_s(_ext, INPUT_LENGTH * sizeof (char), tempExt);
     }
 }
 

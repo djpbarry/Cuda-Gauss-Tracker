@@ -19,22 +19,19 @@
 
 using namespace cv;
 
-void runDetector();
+bool runDetector();
 
 JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFitter
 (JNIEnv *, jobject, jstring, jfloat, jfloat, jfloat) {
-    //runDetector();
-    printf("Hello World!");
-    jboolean result = false;
-    return result;
+    return (jboolean)runDetector();
 }
 
-//int main(int argc, char* argv[]) {
-//    runDetector();
-//    return 0;
-//}
+int main(int argc, char* argv[]) {
+    runDetector();
+    return 0;
+}
 
-void runDetector() {
+bool runDetector() {
     float _2sig2, _sig2, _numAp, _lambda;
     char* _ext = ".tif";
     bool verbose;
@@ -59,7 +56,7 @@ void runDetector() {
     outputDir.append(boost::lexical_cast<string > (_maxThresh));
     if (!(exists(outputDir))) {
         if (!(create_directory(outputDir))) {
-            return;
+            return false;
         }
     }
 
@@ -173,7 +170,7 @@ void runDetector() {
     }
     fclose(data);
     //printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
-    printf("\n\nPress Any Key...");
-    waitForKey();
-    return;
+    //printf("\n\nPress Any Key...");
+    //waitForKey();
+    return true;
 }
