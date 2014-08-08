@@ -20,6 +20,7 @@ float _mSigmaOfRandomWalk[] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 float _mSigmaOfDynamics[] = {2.0f, 2.0f, 1.0f, 1.0f};
 int _mResamplingThreshold = 250;
 int _mRepSteps = 5;
+float _maxThresh;
 
 normal_distribution<float> _dist(0.0f, 1.0f);
 mt19937 rng;

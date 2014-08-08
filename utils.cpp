@@ -3,7 +3,7 @@
 #include <matrix_mat.h>
 #include <defs.h>
 
-extern int countFiles(vector<path> v, char* ext) {
+extern int countFiles(vector<path> v, const char* ext) {
     vector<path>::iterator v_iter;
     int frames = 0;
     for (v_iter = v.begin(); v_iter != v.end(); v_iter++) {
@@ -15,7 +15,7 @@ extern int countFiles(vector<path> v, char* ext) {
     return frames;
 }
 
-extern vector<path> getFiles(char* folder) {
+extern vector<path> getFiles(const char* folder) {
     vec v;
     if (folder == NULL) {
         return v;
@@ -226,4 +226,29 @@ extern void checkFileSep(char* directory) {
         i++;
     }
     return;
+}
+
+extern float getPercentileThresh(const Mat *image, float percentThresh){
+	if ((*image).data == NULL) {
+        return 0.0f;
+    }
+	double minVal, maxVal;
+	minMaxLoc(*image, &minVal, &maxVal);
+    int sbins = 256;
+    int histSize[] = {sbins};
+    float sranges[] = { (float)minVal, (float)maxVal };
+    const float* ranges[] = {sranges};
+    MatND hist;
+    int channels[] = {0};
+
+    calcHist(image, 1, channels, Mat(), hist, 1, histSize, ranges );
+
+	int total = (*image).rows * (*image).cols;
+    double sum = 0.0;
+    int i = 0;
+    while (sum / total < percentThresh && i < sbins) {
+        sum += ((float*) hist.data)[i];
+            i++;
+        }
+    return (float)(minVal + i * (maxVal - minVal)/sbins);
 }

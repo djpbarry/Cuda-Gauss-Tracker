@@ -19,49 +19,60 @@
 
 using namespace cv;
 
-bool runDetector();
+bool runDetector(const char* folder, const char* ext, float spatialRes, float sigmaEst, float maxThresh, float fitTol);
 
 JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFitter
-(JNIEnv *, jobject, jstring, jfloat, jfloat, jfloat) {
-    return (jboolean)runDetector();
+(JNIEnv *env, jobject obj, jstring folder, jstring ext, jfloat spatialRes, jfloat sigmaEst, jfloat maxThresh, jfloat fitTol) {
+	const char *cfolder = env->GetStringUTFChars(folder, NULL);
+   if (NULL == cfolder) return (jboolean)false;
+
+   const char *cext = env->GetStringUTFChars(ext, NULL);
+   if (NULL == cext) return (jboolean)false;
+
+   jboolean result = runDetector(cfolder, cext, spatialRes, sigmaEst, maxThresh, fitTol);
+
+   env->ReleaseStringUTFChars(folder, cfolder);
+   env->ReleaseStringUTFChars(ext, cext);
+
+    return result;
 }
 
-int main(int argc, char* argv[]) {
-    runDetector();
-    return 0;
-}
+//int main(int argc, char* argv[]) {
+//    runDetector();
+//    return 0;
+//}
 
-bool runDetector() {
-    float _2sig2, _sig2, _numAp, _lambda;
-    char* _ext = ".tif";
-    bool verbose;
+bool runDetector(const char* folder, const char* ext, float spatialRes, float sigmaEst, float percentThresh, float fitTol) {
+    //float _2sig2, _sig2, _numAp, _lambda, percentThresh, fitTol =0.95f;
+    //char* _ext = ".tif";
+    bool verbose = true;
     bool drawDots = false;
-    char folder_c1[INPUT_LENGTH], folder_c2[INPUT_LENGTH];
-    getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &_maxThresh, _ext, folder_c1, folder_c2, _configFile, &verbose);
+    //char folder_c1[INPUT_LENGTH], folder_c2[INPUT_LENGTH];
+    //getParams(&_spatialRes, &_numAp, &_lambda, &_sigmaEstNM, &_sigmaEstPix, &_scalefactor, &percentThresh, _ext, folder_c1, folder_c2, _configFile, &verbose);
 
     // Sigma estimate for Gaussian fitting
-    _sigmaEstNM = 0.305f * _lambda / (_numAp * _spatialRes);
-    _sig2 = _sigmaEstNM * _sigmaEstNM;
-    _2sig2 = 2.0f * _sig2;
+    _sigmaEstNM = sigmaEst;
+    //_sig2 = _sigmaEstNM * _sigmaEstNM;
+    //_2sig2 = 2.0f * _sig2;
     bool warnings[] = {true, false};
 
     printf("\n\nStart Detector...\n");
     //char* folder = "C:/Users/barry05/Desktop/Test Data Sets/CUDA Gauss Localiser Tests/Test6";
-    printf("\nFolder: %s\n", folder_c1);
+    printf("\nFolder: %s\n", folder);
 
-    string outputDir(folder_c1);
-    outputDir.append("/CudaOutput_NMAX");
-    outputDir.append(boost::lexical_cast<string > (N_MAX));
-    outputDir.append("_maxThresh");
-    outputDir.append(boost::lexical_cast<string > (_maxThresh));
+    string outputDir(folder);
+    //outputDir.append("/CudaOutput_NMAX");
+    //outputDir.append(boost::lexical_cast<string > (N_MAX));
+    //outputDir.append("percentThresh");
+    //outputDir.append(boost::lexical_cast<string > (percentThresh));
     if (!(exists(outputDir))) {
         if (!(create_directory(outputDir))) {
             return false;
         }
     }
 
-    vector<path> v = getFiles(folder_c1);
-    int frames = countFiles(v, _ext);
+    vector<path> v = getFiles(folder);
+    int frames = countFiles(v, ext);
     vector<path>::iterator v_iter;
 
     v_iter = v.begin();
@@ -84,10 +95,11 @@ bool runDetector() {
     Mat frame;
 
     string dataDir(outputDir);
-    dataDir.append("/data.txt");
+    dataDir.append("/cudadata.txt");
     FILE *data;
     FILE **pdata = &data;
     fopen_s(pdata, dataDir.data(), "w");
+	//fprintf(data, "%s %s %f %f %f %f\n\n", folder, ext, spatialRes, sigmaEst, percentThresh, fitTol);
     for (int loopIndex = 0; loopIndex < numLoops; loopIndex++) {
         printf("\n\n-------------------------\n\nLOOP %d OF %d\n\n-------------------------\n\n", loopIndex + 1, numLoops);
 
@@ -96,10 +108,11 @@ bool runDetector() {
         // Read one image at a time and find candidate particles in each
         for (; frames < (loopIndex + 1) * frameDiv && v_iter != v.end(); v_iter++) {
             string ext_s = ((*v_iter).extension()).string();
-            if ((strcmp(ext_s.c_str(), _ext) == 0)) {
+            if ((strcmp(ext_s.c_str(), ext) == 0)) {
                 printf("\rFinding Maxima ... %d", frames);
                 frame = imread((*v_iter).string(), -1);
-                count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, _maxThresh, warnings, true);
+				//_maxThresh = getPercentileThresh(&frame, percentThresh);
+                count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, percentThresh, warnings, true);
                 frames++;
             }
         }
@@ -112,27 +125,27 @@ bool runDetector() {
         } else if (warnings[1]) {
             printf("\n\nWarning: GPU fitting may be unreliable due to high range of pixel values.\n\n");
         }
-        if (count > 0) GaussFitter(candidates, count, _sigmaEstNM, _maxThresh);
+        if (count > 0) GaussFitter(candidates, count, _sigmaEstNM);
         clock_t totaltime = 0;
         printf("\n-------------------------\n\nWriting Output ... %d", 0);
         for (int z = 0; z < frameDiv; z++) {
-            Matrix cudaoutput;
-            cudaoutput.width = width*_scalefactor;
-            cudaoutput.stride = cudaoutput.width;
-            cudaoutput.height = height*_scalefactor;
-            cudaoutput.size = cudaoutput.width * cudaoutput.height;
-            cudaoutput.elements = (float*) malloc(sizeof (float) * cudaoutput.size);
-            for (int p = 0; p < cudaoutput.width * cudaoutput.height; p++) {
-                cudaoutput.elements[p] = 0.0f;
-            }
-            Mat cudasaveframe(height*_scalefactor, width*_scalefactor, CV_32F);
+            //Matrix cudaoutput;
+            //cudaoutput.width = width*_scalefactor;
+            //cudaoutput.stride = cudaoutput.width;
+            //cudaoutput.height = height*_scalefactor;
+            //cudaoutput.size = cudaoutput.width * cudaoutput.height;
+            //cudaoutput.elements = (float*) malloc(sizeof (float) * cudaoutput.size);
+            //for (int p = 0; p < cudaoutput.width * cudaoutput.height; p++) {
+            //    cudaoutput.elements[p] = 0.0f;
+            //}
+            //Mat cudasaveframe(height*_scalefactor, width*_scalefactor, CV_32F);
             while (round(candidates.elements[outcount + candidates.stride * Z_ROW]) <= z && outcount < count) {
                 int inputX = round(candidates.elements[outcount + candidates.stride * X_ROW]);
                 int inputY = round(candidates.elements[outcount + candidates.stride * Y_ROW]);
                 int bestN = round(candidates.elements[outcount + candidates.stride * BEST_ROW]);
                 int candidatesX = outcount * FIT_SIZE + FIT_RADIUS;
                 int candidatesY = FIT_RADIUS + HEADER;
-                if (bestN >= 0) {
+                if (bestN >= 0 && candidates.elements[outcount + candidates.stride * R_ROW] > fitTol) {
                     for (int i = 0; i <= bestN; i++) {
                         float mag = candidates.elements[outcount + candidates.stride * (MAG_ROW + i)];
                         float bg = candidates.elements[outcount + candidates.stride * (BG_ROW + i)];
@@ -142,29 +155,29 @@ bool runDetector() {
                         //float prec = _sigmaEstNM * 100.0f / (mag - bg);
                         //float prec = 1.0f;
                         //float prec = _sigmaEstNM / _spatialRes;
-                        if (drawDots) {
-                            drawDot(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor);
-                        } else {
-                            draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, _sigmaEstNM);
-                        }
-                        fprintf(data, "%d %f %f %f\n", outFrames, localisedX * _spatialRes, localisedY * _spatialRes, mag);
+                        //if (drawDots) {
+                        //    drawDot(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor);
+                        //} else {
+                        //    draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, _sigmaEstNM);
+                        //
+                        fprintf(data, "%d %f %f %f\n", outFrames, localisedX * _spatialRes/1000.0, localisedY * _spatialRes/1000.0, mag);
                         //testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
                         //}
                     }
                 }
                 outcount++;
             }
-            copyFromMatrix(cudasaveframe, cudaoutput, 0, 65536.0f);
-            cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
+            //copyFromMatrix(cudasaveframe, cudaoutput, 0, 65536.0f);
+            //cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
             printf("\rWriting Output ... %d", outFrames);
-            string savefilename(outputDir);
-            savefilename.append("/");
-            savefilename.append(boost::lexical_cast<string > (outFrames));
+            //string savefilename(outputDir);
+            //savefilename.append("/");
+            //savefilename.append(boost::lexical_cast<string > (outFrames));
             outFrames++;
-            savefilename.append(PNG);
-            imwrite(savefilename, cudasaveframe);
-            free(cudaoutput.elements);
-            cudasaveframe.release();
+            //savefilename.append(PNG);
+            //imwrite(savefilename, cudasaveframe);
+            //free(cudaoutput.elements);
+            //cudasaveframe.release();
         }
         frame.release();
     }

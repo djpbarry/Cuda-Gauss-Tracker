@@ -2,6 +2,7 @@
 #include <gauss_tools.h>
 #include <matrix_mat.h>
 #include <defs.h>
+#include <utils.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/special_functions/round.hpp>
@@ -9,7 +10,7 @@
 float evaluate(float x0, float y0, int x, int y, float sigma2);
 float getFitPrecision(Matrix candidates, int index, int x0, int y0, int best, int bgIndex, int magIndex, float spatialRes, float sigmaEst);
 
-extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadius, float sigmaEst, float maxThresh, bool *warnings, bool copyRegions) {
+extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadius, float sigmaEst, float percentThresh, bool *warnings, bool copyRegions) {
     Size radius(2 * fitRadius + 1, 2 * fitRadius + 1);
     Mat temp = image.clone();
     GaussianBlur(temp, image, radius, sigmaEst, sigmaEst);
@@ -20,7 +21,7 @@ extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadiu
     A.size = A.width * A.height;
     A.elements = (float*) malloc(sizeof (float) * A.size);
     copyToMatrix(temp, A, 0);
-    int thisCount = maxFinder(NULL, A, B, maxThresh, true, count, 0, frame, fitRadius, warnings, copyRegions);
+    int thisCount = maxFinder(NULL, A, B, getPercentileThresh(&temp, percentThresh), true, count, 0, frame, fitRadius, warnings, copyRegions);
     free(A.elements);
     return thisCount;
 }

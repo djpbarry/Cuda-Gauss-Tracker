@@ -11,7 +11,7 @@
 
 #define NUM_REPS 1
 
-__shared__ float _2sig2, _maxThresh, xyStepSize, magStepSize, bgStepSize;
+__shared__ float _2sig2, xyStepSize, magStepSize, bgStepSize;
 
 __global__ void GaussFitterKernel(Matrix A, float sigEst, int reps);
 
@@ -51,7 +51,7 @@ __device__ float getRSquared(int x0, float srs, charMatrix M) {
     return 1.0f - __fdividef(srs, sumMeanDiffSqr);
 }
 
-extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThresh) {
+extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst) {
     cudaSetDevice(0);
     checkCudaError();
     cudaEvent_t start, stop;
@@ -92,7 +92,7 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThre
     cudaEventRecord(start, 0);
     checkCudaError();
     for (int i = 0; i < NUM_REPS; i++) {
-        GaussFitterKernel << <dimGrid, dimBlock>>>(d_A, sigEst, 1);
+        GaussFitterKernel <<<dimGrid, dimBlock>>>(d_A, sigEst, 1);
     }
     cudaEventRecord(stop, 0);
     checkCudaError();
@@ -104,7 +104,7 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst, float maxThre
     cudaEventRecord(start, 0);
     checkCudaError();
 
-    GaussFitterKernel << <dimGrid, dimBlock>>>(d_A, sigEst, NUM_REPS);
+    GaussFitterKernel <<<dimGrid, dimBlock>>>(d_A, sigEst, NUM_REPS);
     cudaEventRecord(stop, 0);
     checkCudaError();
     cudaEventSynchronize(stop);
@@ -177,6 +177,7 @@ __global__ void GaussFitterKernel(Matrix A, float sigEst, int reps) {
             A.elements[index + A.stride * (YE_ROW + j)] = ye[N_MAX * best + j] + HEADER;
             A.elements[index + A.stride * (MAG_ROW + j)] = mag[N_MAX * best + j];
             A.elements[index + A.stride * (BG_ROW + j)] = bg[N_MAX * best + j];
+			A.elements[index + A.stride * (R_ROW + j)] = r[best];
         }
         __syncthreads();
     }
