@@ -19,17 +19,17 @@
 
 using namespace cv;
 
-bool runDetector(const char* folder, const char* ext, float spatialRes, float sigmaEst, float maxThresh, float fitTol);
+bool runDetector(const char* folder, const char* ext, float spatialRes, float sigmaEst, float maxThresh, float fitTol, int start, int end);
 
 JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFitter
-(JNIEnv *env, jobject obj, jstring folder, jstring ext, jfloat spatialRes, jfloat sigmaEst, jfloat maxThresh, jfloat fitTol) {
+(JNIEnv *env, jobject obj, jstring folder, jstring ext, jfloat spatialRes, jfloat sigmaEst, jfloat maxThresh, jfloat fitTol, jint start, jint end) {
 	const char *cfolder = env->GetStringUTFChars(folder, NULL);
    if (NULL == cfolder) return (jboolean)false;
 
    const char *cext = env->GetStringUTFChars(ext, NULL);
    if (NULL == cext) return (jboolean)false;
 
-   jboolean result = runDetector(cfolder, cext, spatialRes, sigmaEst, maxThresh, fitTol);
+   jboolean result = runDetector(cfolder, cext, spatialRes, sigmaEst, maxThresh, fitTol,start,end);
 
    env->ReleaseStringUTFChars(folder, cfolder);
    env->ReleaseStringUTFChars(ext, cext);
@@ -42,7 +42,7 @@ JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFi
 //    return 0;
 //}
 
-bool runDetector(const char* folder, const char* ext, float spatialRes, float sigmaEst, float percentThresh, float fitTol) {
+bool runDetector(const char* folder, const char* ext, float spatialRes, float sigmaEst, float percentThresh, float fitTol, int start, int end) {
     //float _2sig2, _sig2, _numAp, _lambda, percentThresh, fitTol =0.95f;
     //char* _ext = ".tif";
     bool verbose = true;
@@ -109,10 +109,12 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
         for (; frames < (loopIndex + 1) * frameDiv && v_iter != v.end(); v_iter++) {
             string ext_s = ((*v_iter).extension()).string();
             if ((strcmp(ext_s.c_str(), ext) == 0)) {
-                printf("\rFinding Maxima ... %d", frames);
-                frame = imread((*v_iter).string(), -1);
-				//_maxThresh = getPercentileThresh(&frame, percentThresh);
-                count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, percentThresh, warnings, true);
+				if(frames>=start && frames<=end){
+					printf("\rFinding Maxima ... %d", frames);
+					frame = imread((*v_iter).string(), -1);
+					//_maxThresh = getPercentileThresh(&frame, percentThresh);
+					count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, percentThresh, warnings, true);
+				}
                 frames++;
             }
         }
@@ -160,7 +162,7 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
                         //} else {
                         //    draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, _sigmaEstNM);
                         //
-                        fprintf(data, "%d %f %f %f\n", outFrames, localisedX * _spatialRes/1000.0, localisedY * _spatialRes/1000.0, mag);
+                        fprintf(data, "%d %f %f %f\n", outFrames, localisedX * spatialRes/1000.0, localisedY *spatialRes/1000.0, mag);
                         //testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
                         //}
                     }

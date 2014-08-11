@@ -27,6 +27,7 @@ __global__ void LogLikelihoodKernel(Matrix observation, float* mParticles, float
  */
 extern "C" void updateParticleWeightsOnGPU(Matrix observation, float* mParticles, int totalLength, int nbParticles, int offset) {
     if (!(totalLength - offset > 0)) return;
+	float _spatialRes = 1.0f;
     float vVarianceXYinPx = _sigmaEstPix * _sigmaEstPix / (_spatialRes * _spatialRes);
     cudaSetDevice(0);
     checkCudaError();
