@@ -24,10 +24,16 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
 JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFitter
 (JNIEnv *env, jobject obj, jstring folder, jstring ext, jfloat spatialRes, jfloat sigmaEst, jfloat maxThresh, jfloat fitTol, jint start, jint end) {
 	const char *cfolder = env->GetStringUTFChars(folder, NULL);
-   if (NULL == cfolder) return (jboolean)false;
+   if (NULL == cfolder) {
+	   printf("Invalid folder specified.");
+	   return (jboolean)false;
+   }
 
    const char *cext = env->GetStringUTFChars(ext, NULL);
-   if (NULL == cext) return (jboolean)false;
+   if (NULL == cext){
+	   printf("Invalid file extension specified.");
+	   return (jboolean)false;
+   }
 
    jboolean result = runDetector(cfolder, cext, spatialRes, sigmaEst, maxThresh, fitTol,start,end);
 
@@ -38,7 +44,8 @@ JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFi
 }
 
 //int main(int argc, char* argv[]) {
-//    runDetector();
+//    runDetector("C:/Users/barry05/Desktop/SuperRes Actin Tails/2014.07.08_Dualview/Lifeact/Capture_1/C0",
+//		".tif", 133.333f, 1.06f, 0.99f, 0.95f, 0, 499);
 //    return 0;
 //}
 
@@ -60,16 +67,16 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
     //char* folder = "C:/Users/barry05/Desktop/Test Data Sets/CUDA Gauss Localiser Tests/Test6";
     printf("\nFolder: %s\n", folder);
 
-    string outputDir(folder);
+    //string outputDir(folder);
     //outputDir.append("/CudaOutput_NMAX");
     //outputDir.append(boost::lexical_cast<string > (N_MAX));
     //outputDir.append("percentThresh");
     //outputDir.append(boost::lexical_cast<string > (percentThresh));
-    if (!(exists(outputDir))) {
-        if (!(create_directory(outputDir))) {
-            return false;
-        }
-    }
+    //if (!(exists(outputDir))) {
+    //    if (!(create_directory(outputDir))) {
+    //        return false;
+    //    }
+    //}
 
     vector<path> v = getFiles(folder);
     int frames = countFiles(v, ext);
@@ -92,9 +99,14 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
     candidates.size = candidates.width * candidates.height;
     candidates.elements = (float*) malloc(sizeof (float) * candidates.size);
 
+	if(candidates.elements == NULL){
+		printf("Failed to allocate memory - aborting.");
+		return false;
+	}
+
     Mat frame;
 
-    string dataDir(outputDir);
+    string dataDir(folder);
     dataDir.append("/cudadata.txt");
     FILE *data;
     FILE **pdata = &data;
@@ -171,7 +183,7 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
             }
             //copyFromMatrix(cudasaveframe, cudaoutput, 0, 65536.0f);
             //cudasaveframe.convertTo(cudasaveframe, CV_16UC1);
-            printf("\rWriting Output ... %d", outFrames);
+            //printf("\rWriting Output ... %d", outFrames);
             //string savefilename(outputDir);
             //savefilename.append("/");
             //savefilename.append(boost::lexical_cast<string > (outFrames));

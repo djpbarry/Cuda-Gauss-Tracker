@@ -21,7 +21,7 @@
 #define XY_STEP_SIZE 0.1f
 #define MAG_STEP_SIZE 10.0f
 #define BG_STEP_SIZE 1.0f
-#define BLOCK_SIZE_X 64
+#define BLOCK_SIZE_X 256
 #define BLOCK_SIZE_Y 1
 #define HEADER 3
 #define FOOTER (5*N_MAX + 1)
@@ -41,6 +41,6 @@
 #define BACKGROUND 1.0f
 #define TIF ".tif"
 #define EMPTY "empty"
-#define MAX_MEMORY 2000000000
+#define MAX_MEMORY 250000000
 
 #endif
