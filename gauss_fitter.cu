@@ -9,7 +9,7 @@
 #include "device_launch_parameters.h"
 #include <cuda_gauss_fitter.h>
 
-#define NUM_REPS 1
+//#define NUM_REPS 1
 
 __shared__ float _2sig2, xyStepSize, magStepSize, bgStepSize;
 
@@ -91,9 +91,9 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst) {
 
     cudaEventRecord(start, 0);
     checkCudaError();
-    for (int i = 0; i < NUM_REPS; i++) {
+    //for (int i = 0; i < NUM_REPS; i++) {
         GaussFitterKernel <<<dimGrid, dimBlock>>>(d_A, sigEst, 1);
-    }
+    //}
     cudaEventRecord(stop, 0);
     checkCudaError();
     cudaEventSynchronize(stop);
@@ -101,18 +101,18 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst) {
     cudaEventElapsedTime(&outerTime, start, stop);
     checkCudaError();
 
-    cudaEventRecord(start, 0);
-    checkCudaError();
+    //cudaEventRecord(start, 0);
+    //checkCudaError();
 
-    GaussFitterKernel <<<dimGrid, dimBlock>>>(d_A, sigEst, NUM_REPS);
-    cudaEventRecord(stop, 0);
-    checkCudaError();
-    cudaEventSynchronize(stop);
-    checkCudaError();
-    cudaEventElapsedTime(&innerTime, start, stop);
-    checkCudaError();
+    //GaussFitterKernel <<<dimGrid, dimBlock>>>(d_A, sigEst, NUM_REPS);
+    //cudaEventRecord(stop, 0);
+    //checkCudaError();
+    //cudaEventSynchronize(stop);
+    //checkCudaError();
+    //cudaEventElapsedTime(&innerTime, start, stop);
+    //checkCudaError();
 
-    checkCudaError();
+    //checkCudaError();
 
     cudaEventRecord(start, 0);
     checkCudaError();
@@ -134,9 +134,11 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst) {
 
     printf("\nCopy From Device: %.0f\n", copyFromDevice);
 
-    printf("\nInner Time: %.0f Outer Time: %.0f\n", innerTime / NUM_REPS, outerTime / NUM_REPS);
+    //printf("\nInner Time: %.0f Outer Time: %.0f\n", innerTime / NUM_REPS, outerTime / NUM_REPS);
+	printf("\nProcessing Time: %.0f\n", outerTime);
 
-    return (outerTime + innerTime) / (NUM_REPS * 2.0f);
+    //return (outerTime + innerTime) / (NUM_REPS * 2.0f);
+	return outerTime;
 }
 
 __global__ void GaussFitterKernel(Matrix A, float sigEst, int reps) {

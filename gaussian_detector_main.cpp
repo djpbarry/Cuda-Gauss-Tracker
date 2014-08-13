@@ -63,9 +63,21 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
     //_2sig2 = 2.0f * _sig2;
     bool warnings[] = {true, false};
 
-    printf("\n\nStart Detector...\n");
+	string dataDir(folder);
+    dataDir.append("/cudadata.txt");
+    FILE *data;
+    FILE **pdata = &data;
+    fopen_s(pdata, dataDir.data(), "w");
+
+	string logDir(folder);
+    logDir.append("/cudalog.txt");
+    FILE *log;
+    FILE **plog = &log;
+    fopen_s(plog, logDir.data(), "w");
+
+    fprintf(log, "Start Detector...\n\n");
     //char* folder = "C:/Users/barry05/Desktop/Test Data Sets/CUDA Gauss Localiser Tests/Test6";
-    printf("\nFolder: %s\n", folder);
+	fprintf(log, "Folder: %s\n\n", folder);
 
     //string outputDir(folder);
     //outputDir.append("/CudaOutput_NMAX");
@@ -100,22 +112,18 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
     candidates.elements = (float*) malloc(sizeof (float) * candidates.size);
 
 	if(candidates.elements == NULL){
-		printf("Failed to allocate memory - aborting.");
+		fprintf(log, "Failed to allocate memory - aborting.\n\n");
 		return false;
+	} else {
+		fprintf(log, "Memory allocated - proceeding...\n\n", folder);
 	}
 
     Mat frame;
-
-    string dataDir(folder);
-    dataDir.append("/cudadata.txt");
-    FILE *data;
-    FILE **pdata = &data;
-    fopen_s(pdata, dataDir.data(), "w");
 	//fprintf(data, "%s %s %f %f %f %f\n\n", folder, ext, spatialRes, sigmaEst, percentThresh, fitTol);
     for (int loopIndex = 0; loopIndex < numLoops; loopIndex++) {
-        printf("\n\n-------------------------\n\nLOOP %d OF %d\n\n-------------------------\n\n", loopIndex + 1, numLoops);
+        fprintf(log, "-------------------------\n\nLOOP %d OF %d\n\n-------------------------\n\n", loopIndex + 1, numLoops);
 
-        printf("\nFinding Maxima ... %d", 0);
+        fprintf(log, "Finding Maxima ...\n\n");
         int count = 0;
         // Read one image at a time and find candidate particles in each
         for (; frames < (loopIndex + 1) * frameDiv && v_iter != v.end(); v_iter++) {
@@ -133,15 +141,15 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
         int width = frame.cols;
         int height = frame.rows;
         int outcount = 0;
-        printf("\n\n-------------------------\n\nGPU Gaussian Fitting");
+        fprintf(log, "Gaussian Fitting...\n\n");
         if (warnings[0]) {
-            printf("\n\nWarning: GPU fitting may be unreliable due to small range of pixel values.\n\n");
+            fprintf(log, "Warning: GPU fitting may be unreliable due to small range of pixel values.\n\n");
         } else if (warnings[1]) {
-            printf("\n\nWarning: GPU fitting may be unreliable due to high range of pixel values.\n\n");
+            fprintf(log, "Warning: GPU fitting may be unreliable due to high range of pixel values.\n\n");
         }
         if (count > 0) GaussFitter(candidates, count, _sigmaEstNM);
         clock_t totaltime = 0;
-        printf("\n-------------------------\n\nWriting Output ... %d", 0);
+        //printf("\n-------------------------\n\nWriting Output ... %d", 0);
         for (int z = 0; z < frameDiv; z++) {
             //Matrix cudaoutput;
             //cudaoutput.width = width*_scalefactor;
@@ -194,8 +202,10 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
             //cudasaveframe.release();
         }
         frame.release();
+		fprintf(log, "LOOP %d done.\n\n", loopIndex + 1);
     }
     fclose(data);
+	fclose(log);
     //printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
     //printf("\n\nPress Any Key...");
     //waitForKey();
