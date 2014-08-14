@@ -55,7 +55,7 @@ extern "C" float GaussFitter(Matrix A, int maxcount, float sigEst) {
     cudaSetDevice(0);
     checkCudaError();
     cudaEvent_t start, stop;
-    float outerTime, innerTime, copyToDevice, copyFromDevice;
+    float outerTime, copyToDevice, copyFromDevice;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     checkCudaError();

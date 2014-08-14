@@ -134,6 +134,10 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
 					frame = imread((*v_iter).string(), -1);
 					//_maxThresh = getPercentileThresh(&frame, percentThresh);
 					count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, percentThresh, warnings, true);
+					if(count<0){
+						fprintf(log, "Too many maxima! Aborting.\n\n");
+						return false;
+					}
 				}
                 frames++;
             }
@@ -174,6 +178,7 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
                         //if(mag > bg){
                         float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
                         float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
+						float r2 = candidates.elements[outcount + candidates.stride * (R_ROW)];
                         //float prec = _sigmaEstNM * 100.0f / (mag - bg);
                         //float prec = 1.0f;
                         //float prec = _sigmaEstNM / _spatialRes;
@@ -182,7 +187,7 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
                         //} else {
                         //    draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, _sigmaEstNM);
                         //
-                        fprintf(data, "%d %f %f %f\n", outFrames, localisedX * spatialRes/1000.0, localisedY *spatialRes/1000.0, mag);
+                        fprintf(data, "%d %f %f %f %f\n", outFrames, localisedX * spatialRes/1000.0, localisedY *spatialRes/1000.0, mag, r2);
                         //testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
                         //}
                     }
@@ -206,6 +211,7 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
     }
     fclose(data);
 	fclose(log);
+	candidates.elements = NULL;
     //printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
     //printf("\n\nPress Any Key...");
     //waitForKey();
