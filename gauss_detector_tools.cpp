@@ -32,7 +32,7 @@ extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadiu
  */
 
 extern int maxFinder(int* point, const Matrix A, Matrix B, const float maxThresh, bool varyBG, int count, int k, int z, int fitRadius, bool *warnings, bool copyRegions) {
-	float min, max;
+    float min, max;
     int i, j;
     int koffset = k * A.width * A.height;
     int fitSize = 2 * fitRadius + 1;
@@ -86,7 +86,7 @@ extern int maxFinder(int* point, const Matrix A, Matrix B, const float maxThresh
                     B.elements[count + 2 * B.stride] = (float) z;
                 }
                 count++;
-                if (count >= MAX_DETECTIONS * (z+1)) return -1;
+                if (count >= MAX_DETECTIONS * (z + 1)) return -1;
             }
         }
     }

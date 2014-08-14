@@ -23,22 +23,22 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
 
 JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFitter
 (JNIEnv *env, jobject obj, jstring folder, jstring ext, jfloat spatialRes, jfloat sigmaEst, jfloat maxThresh, jfloat fitTol, jint start, jint end) {
-	const char *cfolder = env->GetStringUTFChars(folder, NULL);
-   if (NULL == cfolder) {
-	   printf("Invalid folder specified.");
-	   return (jboolean)false;
-   }
+    const char *cfolder = env->GetStringUTFChars(folder, NULL);
+    if (NULL == cfolder) {
+        printf("Invalid folder specified.");
+        return (jboolean) false;
+    }
 
-   const char *cext = env->GetStringUTFChars(ext, NULL);
-   if (NULL == cext){
-	   printf("Invalid file extension specified.");
-	   return (jboolean)false;
-   }
+    const char *cext = env->GetStringUTFChars(ext, NULL);
+    if (NULL == cext) {
+        printf("Invalid file extension specified.");
+        return (jboolean) false;
+    }
 
-   jboolean result = runDetector(cfolder, cext, spatialRes, sigmaEst, maxThresh, fitTol,start,end);
+    jboolean result = runDetector(cfolder, cext, spatialRes, sigmaEst, maxThresh, fitTol, start, end);
 
-   env->ReleaseStringUTFChars(folder, cfolder);
-   env->ReleaseStringUTFChars(ext, cext);
+    env->ReleaseStringUTFChars(folder, cfolder);
+    env->ReleaseStringUTFChars(ext, cext);
 
     return result;
 }
@@ -63,13 +63,13 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
     //_2sig2 = 2.0f * _sig2;
     bool warnings[] = {true, false};
 
-	string dataDir(folder);
+    string dataDir(folder);
     dataDir.append("/cudadata.txt");
     FILE *data;
     FILE **pdata = &data;
     fopen_s(pdata, dataDir.data(), "w");
 
-	string logDir(folder);
+    string logDir(folder);
     logDir.append("/cudalog.txt");
     FILE *log;
     FILE **plog = &log;
@@ -77,7 +77,7 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
 
     fprintf(log, "Start Detector...\n\n");
     //char* folder = "C:/Users/barry05/Desktop/Test Data Sets/CUDA Gauss Localiser Tests/Test6";
-	fprintf(log, "Folder: %s\n\n", folder);
+    fprintf(log, "Folder: %s\n\n", folder);
 
     //string outputDir(folder);
     //outputDir.append("/CudaOutput_NMAX");
@@ -111,15 +111,15 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
     candidates.size = candidates.width * candidates.height;
     candidates.elements = (float*) malloc(sizeof (float) * candidates.size);
 
-	if(candidates.elements == NULL){
-		fprintf(log, "Failed to allocate memory - aborting.\n\n");
-		return false;
-	} else {
-		fprintf(log, "Memory allocated - proceeding...\n\n", folder);
-	}
+    if (candidates.elements == NULL) {
+        fprintf(log, "Failed to allocate memory - aborting.\n\n");
+        return false;
+    } else {
+        fprintf(log, "Memory allocated - proceeding...\n\n", folder);
+    }
 
     Mat frame;
-	//fprintf(data, "%s %s %f %f %f %f\n\n", folder, ext, spatialRes, sigmaEst, percentThresh, fitTol);
+    //fprintf(data, "%s %s %f %f %f %f\n\n", folder, ext, spatialRes, sigmaEst, percentThresh, fitTol);
     for (int loopIndex = 0; loopIndex < numLoops; loopIndex++) {
         fprintf(log, "-------------------------\n\nLOOP %d OF %d\n\n-------------------------\n\n", loopIndex + 1, numLoops);
 
@@ -129,16 +129,16 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
         for (; frames < (loopIndex + 1) * frameDiv && v_iter != v.end(); v_iter++) {
             string ext_s = ((*v_iter).extension()).string();
             if ((strcmp(ext_s.c_str(), ext) == 0)) {
-				if(frames>=start && frames<=end){
-					printf("\rFinding Maxima ... %d", frames);
-					frame = imread((*v_iter).string(), -1);
-					//_maxThresh = getPercentileThresh(&frame, percentThresh);
-					count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, percentThresh, warnings, true);
-					if(count<0){
-						fprintf(log, "Too many maxima! Aborting.\n\n");
-						return false;
-					}
-				}
+                if (frames >= start && frames <= end) {
+                    printf("\rFinding Maxima ... %d", frames);
+                    frame = imread((*v_iter).string(), -1);
+                    //_maxThresh = getPercentileThresh(&frame, percentThresh);
+                    count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, percentThresh, warnings, true);
+                    if (count < 0) {
+                        fprintf(log, "Too many maxima! Aborting.\n\n");
+                        return false;
+                    }
+                }
                 frames++;
             }
         }
@@ -178,7 +178,7 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
                         //if(mag > bg){
                         float localisedX = candidates.elements[outcount + candidates.stride * (XE_ROW + i)] + inputX - candidatesX;
                         float localisedY = candidates.elements[outcount + candidates.stride * (YE_ROW + i)] + inputY - candidatesY;
-						float r2 = candidates.elements[outcount + candidates.stride * (R_ROW)];
+                        float r2 = candidates.elements[outcount + candidates.stride * (R_ROW)];
                         //float prec = _sigmaEstNM * 100.0f / (mag - bg);
                         //float prec = 1.0f;
                         //float prec = _sigmaEstNM / _spatialRes;
@@ -187,7 +187,7 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
                         //} else {
                         //    draw2DGaussian(cudaoutput, localisedX * _scalefactor, localisedY * _scalefactor, _sigmaEstNM);
                         //
-                        fprintf(data, "%d %f %f %f %f\n", outFrames, localisedX * spatialRes/1000.0, localisedY *spatialRes/1000.0, mag, r2);
+                        fprintf(data, "%d %f %f %f %f\n", outFrames, localisedX * spatialRes / 1000.0, localisedY * spatialRes / 1000.0, mag, r2);
                         //testDrawDot(cudaoutput, inputX * _scalefactor, inputY * _scalefactor, prec);
                         //}
                     }
@@ -207,11 +207,11 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
             //cudasaveframe.release();
         }
         frame.release();
-		fprintf(log, "LOOP %d done.\n\n", loopIndex + 1);
+        fprintf(log, "LOOP %d done.\n\n", loopIndex + 1);
     }
     fclose(data);
-	fclose(log);
-	candidates.elements = NULL;
+    fclose(log);
+    candidates.elements = NULL;
     //printf("\n\nReference Time: %.0f", totaltime * 1000.0f/CLOCKS_PER_SEC);
     //printf("\n\nPress Any Key...");
     //waitForKey();

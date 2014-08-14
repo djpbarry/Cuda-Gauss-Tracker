@@ -127,7 +127,7 @@ extern bool loadParams(float *params, int paramcount, char *filename, int maxlin
     } else {
         return false;
     }
-	if (fgets(line, maxline, fp) != NULL) {
+    if (fgets(line, maxline, fp) != NULL) {
         if (sscanf_s(line, "%s %c %s", dummyString, maxline, dummyChar, sizeof (char), ext, maxline) != 3) {
             memcpy(&ext[0], EMPTY, INPUT_LENGTH);
             _ASSERTE(_CrtCheckMemory());
@@ -193,8 +193,8 @@ void getParams(float* _spatialRes, float* _numAp, float* _lambda, float* _sigmaE
     //*verbose = getBoolInput("Verbose mode (Y/N)?");
     if (tempExt[0] != '.') {
         printf("\n%s doesn't look like a valid file extension, so I'm going to look for %s files\n", tempExt, _ext);
-    } else if(strcmp(_ext, tempExt) != 0){
-		strcpy_s(_ext, INPUT_LENGTH * sizeof (char), tempExt);
+    } else if (strcmp(_ext, tempExt) != 0) {
+        strcpy_s(_ext, INPUT_LENGTH * sizeof (char), tempExt);
     }
 }
 
@@ -228,27 +228,27 @@ extern void checkFileSep(char* directory) {
     return;
 }
 
-extern float getPercentileThresh(const Mat *image, float percentThresh){
-	if ((*image).data == NULL) {
+extern float getPercentileThresh(const Mat *image, float percentThresh) {
+    if ((*image).data == NULL) {
         return 0.0f;
     }
-	double minVal, maxVal;
-	minMaxLoc(*image, &minVal, &maxVal);
+    double minVal, maxVal;
+    minMaxLoc(*image, &minVal, &maxVal);
     int sbins = 256;
     int histSize[] = {sbins};
-    float sranges[] = { (float)minVal, (float)maxVal };
+    float sranges[] = {(float) minVal, (float) maxVal};
     const float* ranges[] = {sranges};
     MatND hist;
     int channels[] = {0};
 
-    calcHist(image, 1, channels, Mat(), hist, 1, histSize, ranges );
+    calcHist(image, 1, channels, Mat(), hist, 1, histSize, ranges);
 
-	int total = (*image).rows * (*image).cols;
+    int total = (*image).rows * (*image).cols;
     double sum = 0.0;
     int i = 0;
     while (sum / total < percentThresh && i < sbins) {
         sum += ((float*) hist.data)[i];
-            i++;
-        }
-    return (float)(minVal + i * (maxVal - minVal)/sbins);
+        i++;
+    }
+    return (float) (minVal + i * (maxVal - minVal) / sbins);
 }
