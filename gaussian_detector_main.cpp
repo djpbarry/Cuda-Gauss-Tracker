@@ -15,13 +15,13 @@
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/special_functions/round.hpp>
 #include <jni.h>
-#include <ParticleTracking_Timelapse_Analysis.h>
+#include <ParticleTracking_GPU_Analyse.h>
 
 using namespace cv;
 
 bool runDetector(const char* folder, const char* ext, float spatialRes, float sigmaEst, float maxThresh, float fitTol, int start, int end);
 
-JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFitter
+JNIEXPORT jboolean JNICALL Java_ParticleTracking_GPU_1Analyse_cudaGaussFitter
 (JNIEnv *env, jobject obj, jstring folder, jstring ext, jfloat spatialRes, jfloat sigmaEst, jfloat maxThresh, jfloat fitTol, jint start, jint end) {
     const char *cfolder = env->GetStringUTFChars(folder, NULL);
     if (NULL == cfolder) {
@@ -44,8 +44,8 @@ JNIEXPORT jboolean JNICALL Java_ParticleTracking_Timelapse_1Analysis_cudaGaussFi
 }
 
 //int main(int argc, char* argv[]) {
-//    runDetector("C:/Users/barry05/Desktop/SuperRes Actin Tails/2014.07.08_Dualview/Lifeact/Capture_1/C0",
-//		".tif", 133.333f, 1.06f, 0.99f, 0.95f, 0, 499);
+//    runDetector("C:/Users/barry05/Desktop/Test_Data_Sets/Tracking_Test_Sequences/TestSequence46/C0",
+//		".tif", 133.333f, 1.26f, 0.99f, 0.95f, 0, 152);
 //    return 0;
 //}
 
@@ -113,6 +113,8 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
 
     if (candidates.elements == NULL) {
         fprintf(log, "Failed to allocate memory - aborting.\n\n");
+		    fclose(data);
+    fclose(log);
         return false;
     } else {
         fprintf(log, "Memory allocated - proceeding...\n\n", folder);
@@ -136,6 +138,8 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
                     count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, percentThresh, warnings, true);
                     if (count < 0) {
                         fprintf(log, "Too many maxima! Aborting.\n\n");
+						fclose(data);
+    fclose(log);
                         return false;
                     }
                 }

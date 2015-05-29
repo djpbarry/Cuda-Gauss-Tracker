@@ -41,6 +41,6 @@
 #define BACKGROUND 1.0f
 #define TIF ".tif"
 #define EMPTY "empty"
-#define MAX_MEMORY 500000000
+#define MAX_MEMORY 2000000000
 
 #endif

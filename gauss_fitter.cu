@@ -38,7 +38,7 @@ __device__ float getRSquared(int x0, float srs, charMatrix M) {
             sumZ += M.elements[x + offset];
         }
     }
-    float mean = __fdividef(sumZ, FIT_SIZE);
+    float mean = __fdividef(sumZ, FIT_SIZE*FIT_SIZE);
     float sumMeanDiffSqr = 0.0f;
 #pragma unroll FIT_SIZE
     for (int y = y0 - FIT_RADIUS; y <= y0 + FIT_RADIUS; y++) {
