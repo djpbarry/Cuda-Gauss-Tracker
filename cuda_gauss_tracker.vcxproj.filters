@@ -1,0 +1,113 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="headers">
+      <UniqueIdentifier>{49dedcc5-2ef4-46c0-a01a-6ad428a84fb6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{7452c096-2e91-44d2-a54f-dbcc32694c96}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="cuda">
+      <UniqueIdentifier>{5e7989c4-8f51-48f6-8387-4dbf667760de}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cuda_gauss_fitter.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="cuda_tracker.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="cuda_utils.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="defs.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="drawing.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="gauss_finder.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="gauss_tools.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="global_params.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="matrix.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="matrix_mat.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tracker_copy_utils.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tracker_tools.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="tracker_utils.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="utils.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="gauss_fitter.cu">
+      <Filter>cuda</Filter>
+    </CudaCompile>
+    <CudaCompile Include="particle_weight_calculator.cu">
+      <Filter>cuda</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="cuda_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="drawing_tools.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="gauss_detector_tools.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="gaussian_detector_main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="global_params.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="matrix_manipulations.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="matrix_mat_conversions.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="particle_tracker_tools.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="particle_tracker_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="probabilistic_tracker_main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="tracker_copy_utils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

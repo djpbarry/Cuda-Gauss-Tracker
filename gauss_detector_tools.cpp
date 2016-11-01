@@ -21,6 +21,7 @@ extern int findParticles(Mat image, Matrix B, int count, int frame, int fitRadiu
     A.size = A.width * A.height;
     A.elements = (float*) malloc(sizeof (float) * A.size);
     copyToMatrix(temp, A, 0);
+	float t = getPercentileThresh(&temp, percentThresh);
     int thisCount = maxFinder(NULL, A, B, getPercentileThresh(&temp, percentThresh), true, count, 0, frame, fitRadius, warnings, copyRegions);
     free(A.elements);
     return thisCount;

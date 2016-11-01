@@ -15,13 +15,13 @@
 #include <boost/math/constants/constants.hpp>
 #include <boost/math/special_functions/round.hpp>
 #include <jni.h>
-#include <ParticleTracking_GPU_Analyse.h>
+#include <ParticleTracking_GPUAnalyse.h>
 
 using namespace cv;
 
 bool runDetector(const char* folder, const char* ext, float spatialRes, float sigmaEst, float maxThresh, float fitTol, int start, int end);
 
-JNIEXPORT jboolean JNICALL Java_ParticleTracking_GPU_1Analyse_cudaGaussFitter
+JNIEXPORT jboolean JNICALL Java_ParticleTracking_GPUAnalyse_cudaGaussFitter
 (JNIEnv *env, jobject obj, jstring folder, jstring ext, jfloat spatialRes, jfloat sigmaEst, jfloat maxThresh, jfloat fitTol, jint start, jint end) {
     const char *cfolder = env->GetStringUTFChars(folder, NULL);
     if (NULL == cfolder) {
@@ -44,8 +44,8 @@ JNIEXPORT jboolean JNICALL Java_ParticleTracking_GPU_1Analyse_cudaGaussFitter
 }
 
 //int main(int argc, char* argv[]) {
-//    runDetector("C:/Users/barry05/Desktop/Test_Data_Sets/Tracking_Test_Sequences/TestSequence46/C0",
-//		".tif", 133.333f, 1.26f, 0.99f, 0.95f, 0, 152);
+//    runDetector("C:/Users/barry05/Desktop/2016.01.15_PP1_Test/Lifeact_0/Capture 4_XY1452873360_Z0_T000_C1/C0",
+//		".tif", 133.333f, 1.01f, 0.99f, 0.5f, 0, 0);
 //    return 0;
 //}
 
@@ -136,10 +136,10 @@ bool runDetector(const char* folder, const char* ext, float spatialRes, float si
                     frame = imread((*v_iter).string(), -1);
                     //_maxThresh = getPercentileThresh(&frame, percentThresh);
                     count = findParticles(frame, candidates, count, frames - (loopIndex * frameDiv), FIT_RADIUS, _sigmaEstNM, percentThresh, warnings, true);
-                    if (count < 0) {
+					if (count < 0) {
                         fprintf(log, "Too many maxima! Aborting.\n\n");
 						fclose(data);
-    fclose(log);
+						fclose(log);
                         return false;
                     }
                 }
